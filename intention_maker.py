@@ -42,7 +42,7 @@ class IntentionMaker:
                 # Get the intention data
                 intention_data = self.create_intention(demand, origins, destinations)
                 # Create the file and write to it
-                with open(self.intention_path + f'/Flight_intention_{demand}_{repetition+1}.csv', 'w') as f:
+                with open(self.intention_path + f'/Flight_intention_{demand}_{repetition+1}.txt', 'w') as f:
                     for line in intention_data:
                         f.write(';'.join(line) + '\n')
         return
@@ -127,7 +127,7 @@ class IntentionMaker:
                 destination = f'({destination_node_lon},{destination_node_lat})'
                 spawn_time_hhmmss = time.strftime('%H:%M:%S', time.gmtime(spawn_time_seconds))
                 
-                flight_intention_data.append([acid, ac_model, spawn_time_hhmmss, spawn_node, destination_node, priority])
+                flight_intention_data.append([acid, ac_model, spawn_time_hhmmss, str(spawn_node), str(destination_node), priority])
                 # Increment acid by 1
                 acidx += 1
             
