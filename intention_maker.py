@@ -1,6 +1,7 @@
 import osmnx as ox
 import numpy as np
 import networkx as nx
+from shapely.ops import linemerge
 import random
 import time
 import copy
@@ -12,7 +13,7 @@ from multiprocessing import Pool
 class IntentionMaker:
     def __init__(self) -> None:
         # Design variables
-        self.traffic_demand_levels = [30, 45, 60] # aircraft per minute
+        self.traffic_demand_levels = [30,60,90]#[30, 45, 60] # aircraft per minute
         self.repetitions_per_demand_level = 5
         self.min_mission_distance = 1000 #metres
         self.max_mission_distance = 6000 #metres
@@ -20,11 +21,15 @@ class IntentionMaker:
         self.min_distance_between_origins = 300 #metres
         self.num_origins = 200
         self.seed = 0
+        self.layer_height = 30
+        self.max_altitude = 500
+        self.speed = 30
         
         # City related parameters
         self.city = 'Vienna' # City name
         self.path = f'{self.city}' # Folder path
         self.intention_path = self.path + '/Intentions'
+        self.scenario_path = self.path + '/Scenarios'
         self.G = ox.load_graphml(f'{self.path}/streets.graphml') # Load the street graph
         self.nodes, self.edges = ox.graph_to_gdfs(self.G) # Load the nodes and edges from the graph
         
@@ -34,22 +39,27 @@ class IntentionMaker:
         """
         # First, make an intention directory if there is none.
         os.makedirs(self.intention_path, exist_ok=True)
+        os.makedirs(self.scenario_path, exist_ok=True)
         # Get origins and destinations
         origins, destinations = self.create_origins_destinations()
         # Then, we for loop over demand levels and repetitions
         for demand in self.traffic_demand_levels:
             for repetition in range(self.repetitions_per_demand_level):
                 # Get the intention data
-                intention_data = self.create_intention(demand, origins, destinations)
+                intention_data, scenario_data = self.create_intention(demand, origins, destinations)
                 # Create the file and write to it
                 with open(self.intention_path + f'/Flight_intention_{demand}_{repetition+1}.txt', 'w') as f:
                     for line in intention_data:
                         f.write(';'.join(line) + '\n')
+                        
+                with open(self.scenario_path + f'/Flight_intention_{demand}_{repetition+1}.scn', 'w') as f:
+                    for line in scenario_data:
+                        f.write(line)
         return
         
         
     def kwikdist(self, lata: float, lona: float, latb:float, lonb:float) -> float:
-        """Gives quick and dirty qdr[deg] and dist [m]
+        """Gives quick and dirty dist [m]
         from lat/lon. (note: does not work well close to poles)"""
 
         re      = 6371000.  # radius earth [m]
@@ -60,6 +70,17 @@ class IntentionMaker:
         dangle  = np.sqrt(dlat * dlat + dlon * dlon * cavelat * cavelat)
         dist    = re * dangle
         return dist
+    
+    def kwikqdr(self, lata: float, lona: float, latb: float, lonb: float)-> float:
+        """Gives quick and dirty qdr[deg]
+        from lat/lon. (note: does not work well close to poles)"""
+        dlat    = np.radians(latb - lata)
+        dlon    = np.radians(((lonb - lona)+180)%360-180)
+        cavelat = np.cos(np.radians(lata + latb) * 0.5)
+
+        qdr     = np.degrees(np.arctan2(dlon * cavelat, dlat)) % 360
+
+        return qdr
     
     def set_seed(self, seed: int) -> None:
         """Creates 
@@ -95,6 +116,7 @@ class IntentionMaker:
         prev_used_nodes = []
         # Flight data
         flight_intention_data = []
+        flight_scenario_data = []
         while timestamp < self.intention_timespan * 60:
             # Distribute the demand equally over this minute
             time_range = np.linspace(0, 59, demand).round().astype(int) + timestamp
@@ -128,6 +150,8 @@ class IntentionMaker:
                 spawn_time_hhmmss = time.strftime('%H:%M:%S', time.gmtime(spawn_time_seconds))
                 
                 flight_intention_data.append([acid, ac_model, spawn_time_hhmmss, str(spawn_node), str(destination_node), priority])
+                # Get flight scenario data
+                flight_scenario_data.append(self.get_scenario_line(acid, spawn_time_hhmmss, spawn_node, destination_node))
                 # Increment acid by 1
                 acidx += 1
             
@@ -137,8 +161,80 @@ class IntentionMaker:
             prev_used_nodes = copy.copy(spawn_nodes)
             
         # At the end, return the data
-        return flight_intention_data
-                        
+        return flight_intention_data, flight_scenario_data
+    
+    def get_scenario_line(self, acid: str, spawn_time: str, spawn_node: int, dest_node: int) -> str:
+        # Get possible spawning altitudes
+        altitudes = np.arange(self.layer_height, self.max_altitude, self.layer_height)
+        # Pick a random one
+        alt = random.choice(altitudes)
+        # Create the path for these two nodes
+        route = nx.shortest_path(self.G, spawn_node, dest_node)
+        # Extract the path geometry
+        geoms = [self.edges.loc[(u, v, 0), 'geometry'] for u, v in zip(route[:-1], route[1:])]
+        line = linemerge(geoms)
+        
+        # Prepare the edges
+        point_edges = []
+        i = 0
+        for geom, u, v in zip(geoms, route[:-1], route[1:]):
+            if i == 0:
+                # First edge, also take the first waypoint
+                for coord in geom.coords:
+                    point_edges.append([u,v])
+            else:
+                first = True
+                for coord in geom.coords:
+                    if first:
+                        first = False
+                        continue
+                    point_edges.append([u,v])
+            i += 1
+        # Get initial heading
+        hdg = self.kwikqdr(line.xy[1][0], line.xy[0][0], line.xy[1][1], line.xy[0][1])
+        # Initialise the scen_text
+        scen_text = f'{spawn_time}>CRE {acid},M600,{line.xy[1][0]},{line.xy[0][0]},{hdg},{alt},{self.speed}\n'
+        scen_text+= f'{spawn_time}>ADDWPTMODE {acid} TURNBANK 25\n'
+        scen_text+= f'{spawn_time}>ADDWPTMODE {acid} TURNRAD 0.00216\n'
+                
+        # Also prepare the turns
+        latlons = list(zip(line.xy[1], line.xy[0]))
+        turns = [True] # Always make first wpt a turn
+        scen_text += f'{spawn_time}>ADDWAYPOINTS {acid} '
+        # Add first waypoint, always a turn
+        scen_text += f'{line.xy[1][0]},{line.xy[0][0]},,,FLYTURN'
+        i = 1
+        for lat_cur, lon_cur in latlons[1:-1]:
+            # Get the needed stuff
+            lat_prev, lon_prev = latlons[i-1]
+            lat_next, lon_next = latlons[i+1]
+            
+            # Get the angle
+            d1=self.kwikqdr(lat_prev,lon_prev,lat_cur,lon_cur)
+            d2=self.kwikqdr(lat_cur,lon_cur,lat_next,lon_next)
+            angle=abs(d2-d1)
+
+            if angle>180:
+                angle=360-angle
+                
+            # This is a turn if angle is greater than 25
+            if angle > 25:
+                scen_text += f',{lat_cur},{lon_cur},,,FLYTURN'
+            else:
+                scen_text += f',{lat_cur},{lon_cur},,,FLYBY'
+                
+            i+= 1
+                
+        #Last waypoint is always a turn one.        
+        turns.append(True)
+        # Add the last waypoint
+        scen_text += f',{line.xy[1][-1]},{line.xy[0][-1]},,,FLYTURN\n'
+        scen_text += f'{spawn_time}>CRUISESPD {acid} {self.speed}\n'
+        scen_text += f'{spawn_time}>ATDIST {acid} {line.xy[1][-1]} {line.xy[0][-1]} 5 DELETE {acid}\n'
+        scen_text += f'{spawn_time}>LNAV {acid} ON\n{spawn_time}>VNAV {acid} ON\n\n'
+        return scen_text
+        
+        
     def create_origins_destinations(self) -> tuple:
         """Selects suitable origins and destinations from the nodes of a Graph.
 
