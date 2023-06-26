@@ -13,8 +13,8 @@ from multiprocessing import Pool
 class IntentionMaker:
     def __init__(self) -> None:
         # Design variables
-        self.traffic_demand_levels = [30,60,90]#[30, 45, 60] # aircraft per minute
-        self.repetitions_per_demand_level = 5
+        self.traffic_demand_levels = [60, 90, 120]# aircraft per minute
+        self.repetitions_per_demand_level = 1
         self.min_mission_distance = 1000 #metres
         self.max_mission_distance = 6000 #metres
         self.intention_timespan = 90 # minutes
@@ -24,6 +24,7 @@ class IntentionMaker:
         self.layer_height = 30
         self.max_altitude = 500
         self.speed = 30
+        self.planning_time_step = 30 #seconds
         
         # City related parameters
         self.city = 'Vienna' # City name
@@ -103,7 +104,6 @@ class IntentionMaker:
             intention (tuple): A tuple with each entry representing a flight intention
         """
         # Some values that are set the same for all flights
-        known_time = '00:00:00'
         ac_model = 'MP30'
         priority = '1'
         # We basically want to go minute by minute and try to fit the required amount of traffic,
@@ -118,12 +118,15 @@ class IntentionMaker:
         flight_intention_data = []
         flight_scenario_data = []
         while timestamp < self.intention_timespan * 60:
+            # Demand is per limit, scale it for the planning time step
+            scaled_demand = int(self.planning_time_step/60 * demand)
             # Distribute the demand equally over this minute
-            time_range = np.linspace(0, 59, demand).round().astype(int) + timestamp
+            time_range = np.linspace(0, self.planning_time_step-1, 
+                                     scaled_demand) + timestamp
             # Get the available nodes
             available_nodes = [node for node in origins if node not in prev_used_nodes]
             # Get a random sample from these nodes
-            spawn_nodes = random.sample(available_nodes, demand)
+            spawn_nodes = random.sample(available_nodes, scaled_demand)
             # Loop through these nodes and spawn aircraft these aircraft within a minute
             for i, spawn_node in enumerate(spawn_nodes):
                 # Get the coordinates of the nodes
@@ -156,7 +159,7 @@ class IntentionMaker:
                 acidx += 1
             
             # Increment time range
-            timestamp += 60
+            timestamp += self.planning_time_step
             # Overwrite the previously used nodes
             prev_used_nodes = copy.copy(spawn_nodes)
             
