@@ -14,7 +14,7 @@ class IntentionMaker:
     def __init__(self) -> None:
         # Design variables
         self.traffic_demand_levels = [60, 90, 120]# aircraft per minute
-        self.repetitions_per_demand_level = 1
+        self.repetitions_per_demand_level = 5
         self.min_mission_distance = 1000 #metres
         self.max_mission_distance = 6000 #metres
         self.intention_timespan = 90 # minutes
@@ -41,11 +41,11 @@ class IntentionMaker:
         # First, make an intention directory if there is none.
         os.makedirs(self.intention_path, exist_ok=True)
         os.makedirs(self.scenario_path, exist_ok=True)
-        # Get origins and destinations
-        origins, destinations = self.create_origins_destinations()
         # Then, we for loop over demand levels and repetitions
         for demand in self.traffic_demand_levels:
             for repetition in range(self.repetitions_per_demand_level):
+                # Get origins and destinations
+                origins, destinations = self.create_origins_destinations()
                 # Get the intention data
                 intention_data, scenario_data = self.create_intention(demand, origins, destinations)
                 # Create the file and write to it
