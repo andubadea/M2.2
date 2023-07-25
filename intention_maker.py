@@ -16,11 +16,12 @@ class IntentionMaker:
         self.traffic_demand_levels = [60, 90, 120]# aircraft per minute
         self.repetitions_per_demand_level = 5
         self.min_mission_distance = 1000 #metres
-        self.max_mission_distance = 6000 #metres
+        self.max_mission_distance = 5000 #metres
         self.intention_timespan = 90 # minutes
         self.min_distance_between_origins = 300 #metres
         self.num_origins = 200
-        self.seed = 0
+        random.seed(0)
+        np.random.seed(0)
         self.layer_height = 30
         self.max_altitude = 500
         self.speed = 30
@@ -57,6 +58,12 @@ class IntentionMaker:
                     for line in scenario_data:
                         f.write(line)
         return
+    
+    def make_scenarios(self) -> None:
+        """Function that creates the scenarios and saves them in files in function of the
+        parameters given in the init function.
+        """
+        pass
         
         
     def kwikdist(self, lata: float, lona: float, latb:float, lonb:float) -> float:
@@ -82,15 +89,6 @@ class IntentionMaker:
         qdr     = np.degrees(np.arctan2(dlon * cavelat, dlat)) % 360
 
         return qdr
-    
-    def set_seed(self, seed: int) -> None:
-        """Creates 
-
-        Args:
-            seed (int): Seed as an integer.
-        """
-        self.seed = seed
-        random.seed(seed)
 
     def create_intention(self, demand: float, origins: list, destinations: list) -> list:
         """Creates a single flight intention file.
