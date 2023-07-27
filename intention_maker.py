@@ -200,7 +200,10 @@ class IntentionMaker:
         # Also prepare the turns
         latlons = list(zip(line.xy[1], line.xy[0]))
         turns = [True] # Always make first wpt a turn
-        scen_text += f'{line.xy[1][0]},{line.xy[0][0]},,,FLYTURN,{point_street_no[0]}'
+        # This text basically has the following order:
+        # lat, lon, alt, spd, RTA, FLYTURN/FLYBY,street_number
+        # For now, RTA is just nothing
+        scen_text += f'{line.xy[1][0]},{line.xy[0][0]},,,,FLYTURN,{point_street_no[0]}'
         i = 1
         for lat_cur, lon_cur in latlons[1:-1]:
             # Get the needed stuff
@@ -217,16 +220,16 @@ class IntentionMaker:
                 
             # This is a turn if angle is greater than 25
             if angle > 25:
-                scen_text += f',{lat_cur},{lon_cur},,,FLYTURN,{point_street_no[i]}'
+                scen_text += f',{lat_cur},{lon_cur},,,,FLYTURN,{point_street_no[i]}'
             else:
-                scen_text += f',{lat_cur},{lon_cur},,,FLYBY,{point_street_no[i]}'
+                scen_text += f',{lat_cur},{lon_cur},,,,FLYBY,{point_street_no[i]}'
                 
             i+= 1
                 
         #Last waypoint is always a turn one.        
         turns.append(True)
         # Add the last waypoint
-        scen_text += f',{line.xy[1][-1]},{line.xy[0][-1]},,,FLYTURN,{street_numbers[-1]}\n'
+        scen_text += f',{line.xy[1][-1]},{line.xy[0][-1]},,,,FLYTURN,{street_numbers[-1]}\n'
         return scen_text
     
     def vanilla_get_scenario_line(self, acid: str, spawn_time: str, spawn_node: int, dest_node: int) -> str:
