@@ -59,12 +59,25 @@ class IntentionMaker:
                         f.write(line)
         return
     
-    def make_scenarios(self) -> None:
-        """Function that creates the scenarios and saves them in files in function of the
-        parameters given in the init function.
-        """
-        pass
-        
+    def make_default_scenarios(self) -> None:
+        """Function that, given the existence of intentions, creates baseline scenarios
+        where aircraft just take the shortest route."""
+        # Get the intentions
+        intention_files = os.listdir(self.intention_path)
+        for intention in intention_files:
+            with open(self.intention_path + '/' + intention, 'r') as f:
+                intention_lines = f.readlines()
+            
+            with open(self.scenario_path+ '/' + intention.replace('txt', 'scn'), 'w') as f:
+                # We can go line by line
+                for line in intention_lines:
+                    line = line.replace('\n','')
+                    split = line.split(';')
+                    # The order is the following:
+                    # acid, ac_model, spawn_time_hhmmss, spawn_node, destination_node, priority
+                    # So let's get the scenario line
+                    scen_line = self.get_scenario_line(split[0], split[2], int(split[3]), int(split[4]))
+                    f.write(scen_line)
         
     def kwikdist(self, lata: float, lona: float, latb:float, lonb:float) -> float:
         """Gives quick and dirty dist [m]
@@ -170,7 +183,7 @@ class IntentionMaker:
         # Pick a random one
         alt = random.choice(altitudes)
         # Create the path for these two nodes
-        route = nx.shortest_path(self.G, spawn_node, dest_node)
+        route = nx.shortest_path(self.G, spawn_node, dest_node, weight = 'length')
         # Extract the path geometry
         geoms = [self.edges.loc[(u, v, 0), 'geometry'] for u, v in zip(route[:-1], route[1:])]
         street_numbers = [self.edges.loc[(u, v, 0), 'stroke'] for u, v in zip(route[:-1], route[1:])]
@@ -238,7 +251,7 @@ class IntentionMaker:
         # Pick a random one
         alt = random.choice(altitudes)
         # Create the path for these two nodes
-        route = nx.shortest_path(self.G, spawn_node, dest_node)
+        route = nx.shortest_path(self.G, spawn_node, dest_node, weight = 'length')
         # Extract the path geometry
         geoms = [self.edges.loc[(u, v, 0), 'geometry'] for u, v in zip(route[:-1], route[1:])]
         street_numbers = [self.edges.loc[(u, v, 0), 'stroke_group'] for u, v in zip(route[:-1], route[1:])]
@@ -348,7 +361,9 @@ def main():
     # make an intention maker instance
     maker = IntentionMaker()
     # Create the intentions
-    maker.make_intentions()
+    #maker.make_intentions()
+    # Create default scenarios
+    maker.make_default_scenarios()
     return
 
 if __name__ == "__main__":
