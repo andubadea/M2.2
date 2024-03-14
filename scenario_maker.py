@@ -5,6 +5,7 @@ from shapely.ops import linemerge
 from shapely.geometry import Point
 import random
 import os
+import re
 
 class ScenarioMaker:
     def __init__(self) -> None:
@@ -18,20 +19,23 @@ class ScenarioMaker:
         self.nodes, self.edges = ox.graph_to_gdfs(self.G) # Load the nodes and edges from the graph
         # Aircraft related 
         self.speed = 30
+        self.layer_height = 30 #ft
         return
     
     def create_scenario_from_strategic(self):
         """Takes all the strategically optimised intention files and converts them to
         scenario files."""
         # Get all the files
-        strategic_files = [x for x in os.listdir(self.strategic_path) if '.txt' in x]
+        strategic_files = [x for x in os.listdir(self.strategic_path) if '.out' in x]
         
         for filename in strategic_files:
             with open(self.strategic_path + '/' + filename, 'r') as f:
                 lines = f.readlines()
+                
+            lines_sorted = self.natural_sort(lines)
             
-            with open(self.strategic_path + '/' + filename.replace('.txt', '.scn'), 'w') as f:
-                for line in lines:
+            with open(self.strategic_path + '/' + filename.replace('.out', '.scn'), 'w') as f:
+                for line in lines_sorted:
                     scen_line = self.get_scenario_text_from_intention_line(line)
                     f.write(scen_line)
                     
@@ -146,7 +150,7 @@ class ScenarioMaker:
         line_split = intention_line.split(',')
         # Extract information
         acid = line_split[0]
-        alt = line_split[1]
+        alt = int(line_split[1]) * self.layer_height
         dep_time = line_split[2]
         origin_lat = round(float(line_split[3]), 8)
         origin_lon = round(float(line_split[4]), 8)
@@ -225,6 +229,12 @@ class ScenarioMaker:
                     scen_text += f',{lat},{lon},,,{rta},FLYBY,{street_number}'
 
         return scen_text
+    
+    @staticmethod
+    def natural_sort(l): 
+        convert = lambda text: int(text) if text.isdigit() else text.lower()
+        alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+        return sorted(l, key=alphanum_key)
     
 
 def main():
