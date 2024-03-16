@@ -1,11 +1,7 @@
-import osmnx as ox
 import numpy as np
-import networkx as nx
-from shapely.ops import linemerge
-from shapely.geometry import Point
 from multiprocessing import Pool
+import itertools
 import tqdm
-import random
 import os
 import re
 
@@ -14,157 +10,88 @@ class ScenarioMaker:
         # City related parameters
         self.city = 'Vienna' # City name
         self.path = f'{self.city}' # Folder path
-        self.scenario_path = self.path + '/Scenarios'
-        self.intention_path = self.path + '/Intentions'
-        self.strategic_path = self.path + '/Strategic'
-        self.G = ox.load_graphml(f'{self.path}/streets_new.graphml') # Load the street graph
-        self.nodes, self.edges = ox.graph_to_gdfs(self.G) # Load the nodes and edges from the graph
+        self.scenario_path = self.path + '/Base Scenarios/'
+        self.output_path = self.path + '/M2.2/'
         # Aircraft related 
         self.speed = 30
         self.layer_height = 30 #ft
         self.num_cpu = 16
+        # Independent variables
+        self.demand = [60, 90, 120]
+        self.tactical = ['NoCR', 'SB']
+        #self.strategic = ['RandomAlt', '1D', '2D', '4D', '4DRTA']
+        self.strategic = ['RandomAlt','4D', '4DRTA']
+        self.delay_mag = [0, 10, 30, 60, 120]
+        self.delay_prob = [0, 10, 30, 50]
+        self.wind_mag = [0, 2, 4, 6, 8]
+        self.wind_dir = [0, 90, 180, 270]
+        self.repetition = [1,2,3,4,5]
         return
     
-    def create_scenario_from_strategic(self):
-        """Takes all the strategically optimised intention files and converts them to
-        scenario files."""
-        # Get all the files
-        strategic_files = [x for x in os.listdir(self.strategic_path) if '.out' in x]
+    def create_experiment_scenarios(self):
+        # Create array of condition combinations.
+        input_arr = list(itertools.product(*[self.demand, 
+                                       self.tactical, 
+                                       self.strategic, 
+                                       self.delay_mag, 
+                                       self.delay_prob, 
+                                       self.wind_mag, 
+                                       self.wind_dir, 
+                                       self.repetition]))
+        print(input_arr)
         
-        for filename in strategic_files:
-            with open(self.strategic_path + '/' + filename, 'r') as f:
-                lines = f.readlines()
-            
-            # Multiprocessed line processing is fast
-            print(f'Processing {filename}')
-            with Pool(self.num_cpu) as p:
-                scen_lines = list(tqdm.tqdm(p.imap(self.get_scenario_text_from_intention_line, lines), total = len(lines)))
-                
-            # Save em to file
-            with open(self.strategic_path + '/' + filename.replace('.out', '.scn'), 'w') as f:
-                sorted_lines = self.natural_sort(scen_lines)
-                f.write(''.join(sorted_lines))
-                    
-        return
-                
+        # Make a pool and create scenarios
+        with Pool(self.num_cpu) as p:
+            _ = list(tqdm.tqdm(p.imap(self.create_scenario_file, input_arr), total = len(input_arr)))
         
-    def kwikdist(self, lata: float, lona: float, latb:float, lonb:float) -> float:
-        """Gives quick and dirty dist [m]
-        from lat/lon. (note: does not work well close to poles)"""
-
-        re      = 6371000.  # radius earth [m]
-        dlat    = np.radians(latb - lata)
-        dlon    = np.radians(((lonb - lona)+180)%360-180)
-        cavelat = np.cos(np.radians(lata + latb) * 0.5)
-
-        dangle  = np.sqrt(dlat * dlat + dlon * dlon * cavelat * cavelat)
-        dist    = re * dangle
-        return dist
-    
-    def kwikqdr(self, lata: float, lona: float, latb: float, lonb: float)-> float:
-        """Gives quick and dirty qdr[deg]
-        from lat/lon. (note: does not work well close to poles)"""
-        dlat    = np.radians(latb - lata)
-        dlon    = np.radians(((lonb - lona)+180)%360-180)
-        cavelat = np.cos(np.radians(lata + latb) * 0.5)
-
-        qdr     = np.degrees(np.arctan2(dlon * cavelat, dlat)) % 360
-
-        return qdr
-    
-    def get_scenario_text_from_intention_line(self, intention_line):
-        """This function takes an intention line and converts it to a scenario line. This will depent on
-        what information the intention line gives, and whether it includes an RTA or not.
-        There are basically 2 cases we need to consider: RTA is given and RTA is not given."""
         
-        # Intention line comes as a string in the following format
-        # ACID, ALT[FT], DEP-TIME [HH:MM:SS], LAT, LON, RTA ....
-        # First waypoint is also the spawn point
-        # Let's first parse the thing.
-        intention_line = intention_line.replace('\n','')
-        line_split = intention_line.split(',')
-        # Extract information
-        acid = line_split[0]
-        alt = int(line_split[1]) * self.layer_height
-        dep_time = line_split[2]
-        origin_lat = round(float(line_split[3]), 8)
-        origin_lon = round(float(line_split[4]), 8)
-        # We also want the next waypoint coords
-        nxtwp_lat = float(line_split[6])
-        nxtwp_lon = float(line_split[7])
-        hdg = self.kwikqdr(float(line_split[3]), float(line_split[4]), nxtwp_lat, nxtwp_lon)
-        # We can now initialise the CRE text
-        scen_text = f'{dep_time}>M22CRE {acid},M600,{line_split[3]},{line_split[4]},{hdg},{alt},{self.speed}'
-        # The RTA of the first waypoint, which is also the origin, doesn't matter.
-        # Now, let's separate the route from the beginning
-        route = line_split[6:]
-        # Let's reshape this guy to a thing multiple of 6
-        route_arr = np.reshape(route, (int(len(route)/3), 3))
-        # Find all nodes in the route and their index
-        nodes = []
-        # Get the first node from the origin
-        nodes.append((self.nodes[(self.nodes['geometry'] == Point(origin_lon, origin_lat))].index[0], -1))
-        for i, waypoint_arr in enumerate(route_arr):
-            wpt_point = Point(round(float(waypoint_arr[1]), 8), round(float(waypoint_arr[0]), 8))
-            if wpt_point in self.nodes['geometry']:
-                # We have a node, get its osmid
-                nodes.append((self.nodes[(self.nodes['geometry'] == wpt_point)].index[0], i))
-
-        # Now we have a list of nodes and where they are, so we can create the street number for each entry
-        # The first waypoint is the one right after the origin, just for reference. Origin is index -1
-        node_idx = 0
-        u = nodes[node_idx][0]
-        v = nodes[node_idx+1][0]
-        # Add the origin as the first waypoint
-        scen_text += f',{float(line_split[3])},{float(line_split[4])},,,,FLYTURN,{self.edges.loc[(u, v, 0), "stroke"]}'
-        for wpidx, waypoint_arr in enumerate(route_arr):
-            # Get the data from the waypoint_arr
-            lat = float(waypoint_arr[0])
-            lon = float(waypoint_arr[1])
-            rta = waypoint_arr[2]
-            if rta == '00:00:00':
-                rta = ''
-            # Check if we need to update the current edge. This only happens
-            # if the wpidx is greater than the node index in edge_idx
-            if nodes[node_idx+1][1] < wpidx:
-                # Update the edge
-                node_idx += 1
-                u = nodes[node_idx][0]
-                v = nodes[node_idx+1][0]
+    def create_scenario_file(self, args):
+        # Unpack
+        demand, tactical, strategic, delay_mag, delay_prob, wind_mag, wind_dir, repetition = args
+        # If strategic is RandomAlt, we load a standard scenario
+        if strategic == 'RandomAlt':
+            base_scen = self.scenario_path + f'Standard/Flight_intention_{demand}_{repetition}.scn'
+        # Else, we need to load a 1, 2 or 4 dof one
+        elif strategic in ['1D', '2D', '4D']:
+            base_scen = self.scenario_path + f'{strategic}/Flight_intention_{demand}_{repetition}.scn'
+        # If RTA, we load the 4DoF
+        elif strategic == '4DRTA':
+            base_scen = self.scenario_path + f'4DoF/Flight_intention_{demand}_{repetition}.scn'
+        else:
+            # weird
+            print(f'Strategic {strategic} is not implemented.')
+            return False
             
-            # Now get the street number
-            street_number = self.edges.loc[(u, v, 0), 'stroke']
+        # We build the starting commands in function of the options
+        scen_text = ''
+        # scen_text += '00:00:00>PAN 48.20864707791969, 16.369901379005423\n'
+        # scen_text += '00:00:00>ZOOM 20\n'
+        scen_text += f'00:00:00>SEED {repetition}\n'
+        scen_text += '00:00:00>ASAS ON\n'
+        if tactical == 'SB':
+            scen_text += '00:00:00>RESO M22CR\n'
+        scen_text += '00:00:00>CDMETHOD M22CD\n'
+        scen_text += '00:00:00>IMPL WINDSIM M22WIND\n'
+        scen_text += f'00:00:00>SETM22WIND {wind_mag} {wind_dir}\n'
+        scen_text += f'00:00:00>SETM22DELAY {delay_mag} {delay_prob}\n'
+        scen_text += '00:00:00>STARTLOGS\n'
+        if strategic == '4DRTA':
+            scen_text += '00:00:00>ENABLERTA\n'
+        scen_text += '00:00:00>SCHEDULE 02:00:00 DELETEALL\n'
+        scen_text += '00:00:00>SCHEDULE 02:00:01 HOLD\n'
+        scen_text += '00:00:00.00>FF\n'
+        
+        # Now load the base scen file
+        with open(base_scen, 'r') as f:
+            lines = f.read()
             
-            # Now append the waypoint information to the scen_text
-            # First and last waypoint always a turn
-            if wpidx == len(route_arr)-1:
-                # Last waypoint, add a \n
-                scen_text += f',{lat},{lon},,,{rta},FLYTURN,{street_number}\n'
-            else:
-                # We need to find the angle to determine whether it is a turn or not
-                # Get the needed stuff
-                if wpidx == 0:
-                    lat_prev, lon_prev = float(line_split[3]), float(line_split[4])
-                else:
-                    lat_prev, lon_prev = float(route_arr[wpidx-1][0]),float(route_arr[wpidx-1][1])
-                lat_next, lon_next = float(route_arr[wpidx+1][0]),float(route_arr[wpidx+1][1])
-                
-                # Get the angle
-                d1=self.kwikqdr(lat_prev,lon_prev,lat,lon)
-                d2=self.kwikqdr(lat,lon,lat_next,lon_next)
-                angle=abs(d2-d1)
-
-                if angle>180:
-                    angle=360-angle
-                    
-                # This is a turn if angle is greater than 25
-                if angle > 25:
-                    scen_text += f',{lat},{lon},,,{rta},FLYTURN,{street_number}'
-                else:
-                    scen_text += f',{lat},{lon},,,{rta},FLYBY,{street_number}'
-
-        return scen_text
-    
+        # Open final scenario file
+        out_scen_name = f'M22_{demand}_{tactical}_{strategic}_{delay_mag}_{delay_prob}_{wind_dir}_{wind_mag}_{repetition}.scn'
+        with open(self.output_path + out_scen_name, 'w') as f:
+            f.write(scen_text)
+            f.write(lines)
+        return True
+        
     @staticmethod
     def natural_sort(l): 
         convert = lambda text: int(text) if text.isdigit() else text.lower()
@@ -175,7 +102,7 @@ class ScenarioMaker:
 def main():
     maker = ScenarioMaker()
     # Create strategic scenarios
-    maker.create_scenario_from_strategic()
+    maker.create_experiment_scenarios()
     return
 
 if __name__ == "__main__":
