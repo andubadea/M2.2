@@ -17,7 +17,7 @@ class ScenarioMaker:
         self.scenario_path = self.path + '/Scenarios'
         self.intention_path = self.path + '/Intentions'
         self.strategic_path = self.path + '/Strategic'
-        self.G = ox.load_graphml(f'{self.path}/streets_coined.graphml') # Load the street graph
+        self.G = ox.load_graphml(f'{self.path}/streets_new.graphml') # Load the street graph
         self.nodes, self.edges = ox.graph_to_gdfs(self.G) # Load the nodes and edges from the graph
         # Aircraft related 
         self.speed = 30
