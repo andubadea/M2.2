@@ -3,6 +3,8 @@ import numpy as np
 import networkx as nx
 from shapely.ops import linemerge
 from shapely.geometry import Point
+from multiprocessing import Pool
+import tqdm
 import random
 import os
 import re
@@ -20,6 +22,7 @@ class ScenarioMaker:
         # Aircraft related 
         self.speed = 30
         self.layer_height = 30 #ft
+        self.num_cpu = 16
         return
     
     def create_scenario_from_strategic(self):
@@ -31,13 +34,16 @@ class ScenarioMaker:
         for filename in strategic_files:
             with open(self.strategic_path + '/' + filename, 'r') as f:
                 lines = f.readlines()
-                
-            lines_sorted = self.natural_sort(lines)
             
+            # Multiprocessed line processing is fast
+            print(f'Processing {filename}')
+            with Pool(self.num_cpu) as p:
+                scen_lines = list(tqdm.tqdm(p.imap(self.get_scenario_text_from_intention_line, lines), total = len(lines)))
+                
+            # Save em to file
             with open(self.strategic_path + '/' + filename.replace('.out', '.scn'), 'w') as f:
-                for line in lines_sorted:
-                    scen_line = self.get_scenario_text_from_intention_line(line)
-                    f.write(scen_line)
+                sorted_lines = self.natural_sort(scen_lines)
+                f.write(''.join(sorted_lines))
                     
         return
                 
@@ -65,77 +71,6 @@ class ScenarioMaker:
         qdr     = np.degrees(np.arctan2(dlon * cavelat, dlat)) % 360
 
         return qdr
-    
-    def get_baseline_scenario_line(self, acid: str, spawn_time: str, spawn_node: int, dest_node: int) -> str:
-        # Get possible spawning altitudes
-        altitudes = np.arange(self.layer_height, self.max_altitude, self.layer_height)
-        # Pick a random one
-        alt = random.choice(altitudes)
-        # Create the path for these two nodes
-        route = nx.shortest_path(self.G, spawn_node, dest_node, weight = 'length')
-        # Extract the path geometry
-        geoms = [self.edges.loc[(u, v, 0), 'geometry'] for u, v in zip(route[:-1], route[1:])]
-        line = linemerge(geoms)
-        
-        # Prepare the edges
-        point_edges = []
-        i = 0
-        for geom, u, v in zip(geoms, route[:-1], route[1:]):
-            if i == 0:
-                # First edge, also take the first waypoint
-                for coord in geom.coords:
-                    point_edges.append([u,v])
-            else:
-                first = True
-                for coord in geom.coords:
-                    if first:
-                        first = False
-                        continue
-                    point_edges.append([u,v])
-            i += 1
-        # Get initial heading
-        hdg = self.kwikqdr(line.xy[1][0], line.xy[0][0], line.xy[1][1], line.xy[0][1])
-        # Initialise the scen_text
-        scen_text = f'{spawn_time}>CRE {acid},M600,{line.xy[1][0]},{line.xy[0][0]},{hdg},{alt},{self.speed}\n'
-        scen_text+= f'{spawn_time}>ADDWPTMODE {acid} TURNBANK 25\n'
-        scen_text+= f'{spawn_time}>ADDWPTMODE {acid} TURNRAD 0.00216\n'
-                
-        # Also prepare the turns
-        latlons = list(zip(line.xy[1], line.xy[0]))
-        turns = [True] # Always make first wpt a turn
-        scen_text += f'{spawn_time}>ADDWAYPOINTS {acid} '
-        # Add first waypoint, always a turn
-        scen_text += f'{line.xy[1][0]},{line.xy[0][0]},,,FLYTURN'
-        i = 1
-        for lat_cur, lon_cur in latlons[1:-1]:
-            # Get the needed stuff
-            lat_prev, lon_prev = latlons[i-1]
-            lat_next, lon_next = latlons[i+1]
-            
-            # Get the angle
-            d1=self.kwikqdr(lat_prev,lon_prev,lat_cur,lon_cur)
-            d2=self.kwikqdr(lat_cur,lon_cur,lat_next,lon_next)
-            angle=abs(d2-d1)
-
-            if angle>180:
-                angle=360-angle
-                
-            # This is a turn if angle is greater than 25
-            if angle > 25:
-                scen_text += f',{lat_cur},{lon_cur},,,FLYTURN'
-            else:
-                scen_text += f',{lat_cur},{lon_cur},,,FLYBY'
-                
-            i+= 1
-                
-        #Last waypoint is always a turn one.        
-        turns.append(True)
-        # Add the last waypoint
-        scen_text += f',{line.xy[1][-1]},{line.xy[0][-1]},,,FLYTURN\n'
-        scen_text += f'{spawn_time}>CRUISESPD {acid} {self.speed}\n'
-        scen_text += f'{spawn_time}>ATDIST {acid} {line.xy[1][-1]} {line.xy[0][-1]} 5 DELETE {acid}\n'
-        scen_text += f'{spawn_time}>LNAV {acid} ON\n{spawn_time}>VNAV {acid} ON\n\n'
-        return scen_text
     
     def get_scenario_text_from_intention_line(self, intention_line):
         """This function takes an intention line and converts it to a scenario line. This will depent on
@@ -238,11 +173,8 @@ class ScenarioMaker:
     
 
 def main():
-    # make an intention maker instance
     maker = ScenarioMaker()
-    # Create the intentions
-    #maker.make_intentions()
-    # Create default scenarios
+    # Create strategic scenarios
     maker.create_scenario_from_strategic()
     return
 

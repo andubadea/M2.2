@@ -2,10 +2,13 @@ import osmnx as ox
 import numpy as np
 import networkx as nx
 from shapely.ops import linemerge
+from shapely.geometry import MultiLineString, LineString
+import geopandas as gpd
 import random
 import time
 import copy
 import os
+import matplotlib.pyplot as plt
 
 from multiprocessing import Pool
 
@@ -32,7 +35,7 @@ class IntentionMaker:
         self.path = f'{self.city}' # Folder path
         self.intention_path = self.path + '/Intentions'
         self.scenario_path = self.path + '/Scenarios'
-        self.G = ox.load_graphml(f'{self.path}/streets_coined.graphml') # Load the street graph
+        self.G = ox.load_graphml(f'{self.path}/streets_new.graphml') # Load the street graph
         self.nodes, self.edges = ox.graph_to_gdfs(self.G) # Load the nodes and edges from the graph
         
     def make_intentions(self) -> None:
@@ -186,8 +189,19 @@ class IntentionMaker:
         route = nx.shortest_path(self.G, spawn_node, dest_node, weight = 'length')
         # Extract the path geometry
         geoms = [self.edges.loc[(u, v, 0), 'geometry'] for u, v in zip(route[:-1], route[1:])]
+        rounded_geoms = []
+        # Round coords
+        for geom in geoms:
+            coords = np.round(np.array(geom.xy).T, 7)
+            rounded_geoms.append(LineString(coords))
+            
         street_numbers = [self.edges.loc[(u, v, 0), 'stroke'] for u, v in zip(route[:-1], route[1:])]
-        line = linemerge(geoms)
+        line = linemerge(rounded_geoms)
+
+        if type(line) == MultiLineString:
+            for l in line.geoms:
+                plt.plot(l.xy[0],l.xy[1])
+            plt.show()
         
         # Prepare the edges
         point_street_no = []
