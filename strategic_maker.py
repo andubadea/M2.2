@@ -22,14 +22,14 @@ class StrategicScenarioMaker:
         # Aircraft related 
         self.speed = 30
         self.layer_height = 30 #ft
-        self.num_cpu = 1
+        self.num_cpu = 32
         return
     
     def create_scenario_from_strategic(self):
         """Takes all the strategically optimised intention files and converts them to
         scenario files."""
         # Get all the files
-        strategic_files = [x for x in os.listdir(self.strategic_path) if '120_1.out' in x]
+        strategic_files = [x for x in os.listdir(self.strategic_path) if '120_2.out' in x]
         
         for filename in strategic_files:
             with open(self.strategic_path + '/' + filename, 'r') as f:
