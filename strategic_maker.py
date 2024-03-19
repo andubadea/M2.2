@@ -155,67 +155,47 @@ class StrategicScenarioMaker:
         acid = line_split[0]
         alt = int(line_split[1]) * self.layer_height
         dep_time = line_split[2]
-        origin_lat = round(float(line_split[3]), 8)
-        origin_lon = round(float(line_split[4]), 8)
+        origin_node = int(line_split[3])
+        origin_lon, origin_lat = self.nodes.loc[origin_node]['geometry'].x, self.nodes.loc[origin_node]['geometry'].y
         # We also want the next waypoint coords
-        nxtwp_lat = float(line_split[6])
-        nxtwp_lon = float(line_split[7])
-        hdg = self.kwikqdr(float(line_split[3]), float(line_split[4]), nxtwp_lat, nxtwp_lon)
+        nxt_node = int(line_split[5])
+        nxtwp_lon, nxtwp_lat = self.nodes.loc[nxt_node]['geometry'].x, self.nodes.loc[nxt_node]['geometry'].y
+        hdg = self.kwikqdr(origin_lat, origin_lon, nxtwp_lat, nxtwp_lon)
         # We can now initialise the CRE text
-        scen_text = f'{dep_time}>M22CRE {acid},M600,{line_split[3]},{line_split[4]},{hdg},{alt},{self.speed}'
+        scen_text = f'{dep_time}>M22CRE {acid},M600,{origin_lat},{origin_lon},{hdg},{alt},{self.speed}'
         # The RTA of the first waypoint, which is also the origin, doesn't matter.
         # Now, let's separate the route from the beginning
-        route = line_split[6:]
-        # Let's reshape this guy to a thing multiple of 6
-        route_arr = np.reshape(route, (int(len(route)/3), 3))
-        # Find all nodes in the route and their index
-        nodes = []
-        # Get the first node from the origin
-        nodes.append((self.nodes[(self.nodes['geometry'] == Point(origin_lon, origin_lat))].index[0], -1))
-        for i, waypoint_arr in enumerate(route_arr):
-            wpt_point = Point(round(float(waypoint_arr[1]), 8), round(float(waypoint_arr[0]), 8))
-            if wpt_point in self.nodes['geometry']:
-                # We have a node, get its osmid
-                nodes.append((self.nodes[(self.nodes['geometry'] == wpt_point)].index[0], i))
-
-        # Now we have a list of nodes and where they are, so we can create the street number for each entry
-        # The first waypoint is the one right after the origin, just for reference. Origin is index -1
-        node_idx = 0
-        u = nodes[node_idx][0]
-        v = nodes[node_idx+1][0]
-        # Add the origin as the first waypoint
-        scen_text += f',{float(line_split[3])},{float(line_split[4])},,,,FLYTURN,{self.edges.loc[(u, v, 0), "stroke"]}'
-        for wpidx, waypoint_arr in enumerate(route_arr):
+        route = line_split[3:]
+        # Let's reshape this guy to a thing multiple of 2
+        route_arr = np.reshape(route, (int(len(route)/2), 2))
+        # now add the waypoints
+        for i, wpdata in enumerate(route_arr):
             # Get the data from the waypoint_arr
-            lat = float(waypoint_arr[0])
-            lon = float(waypoint_arr[1])
-            rta = waypoint_arr[2]
+            current_node = int(wpdata[0])
+            u = current_node
+            v = int(route_arr[:,0][i+1])
+            lon, lat = self.nodes.loc[current_node]['geometry'].x, self.nodes.loc[current_node]['geometry'].y
+            
+            rta = wpdata[1]
             if rta == '00:00:00':
                 rta = ''
-            # Check if we need to update the current edge. This only happens
-            # if the wpidx is greater than the node index in edge_idx
-            if nodes[node_idx+1][1] < wpidx:
-                # Update the edge
-                node_idx += 1
-                u = nodes[node_idx][0]
-                v = nodes[node_idx+1][0]
-            
+                
             # Now get the street number
             street_number = self.edges.loc[(u, v, 0), 'stroke']
             
             # Now append the waypoint information to the scen_text
             # First and last waypoint always a turn
-            if wpidx == len(route_arr)-1:
+            if i == len(route_arr)-1:
                 # Last waypoint, add a \n
                 scen_text += f',{lat},{lon},,,{rta},FLYTURN,{street_number}\n'
+            elif i == 0:
+                # origin, not a turn
+                scen_text += f',{lat},{lon},,,{rta},FLYBY,{street_number}'
             else:
                 # We need to find the angle to determine whether it is a turn or not
                 # Get the needed stuff
-                if wpidx == 0:
-                    lat_prev, lon_prev = float(line_split[3]), float(line_split[4])
-                else:
-                    lat_prev, lon_prev = float(route_arr[wpidx-1][0]),float(route_arr[wpidx-1][1])
-                lat_next, lon_next = float(route_arr[wpidx+1][0]),float(route_arr[wpidx+1][1])
+                lat_prev, lon_prev = float(route_arr[i-1][0]),float(route_arr[i-1][1])
+                lat_next, lon_next = float(route_arr[i+1][0]),float(route_arr[i+1][1])
                 
                 # Get the angle
                 d1=self.kwikqdr(lat_prev,lon_prev,lat,lon)
