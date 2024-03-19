@@ -16,7 +16,9 @@ class StrategicScenarioMaker:
         self.path = f'{self.city}' # Folder path
         self.scenario_path = self.path + '/Scenarios/Strategic'
         self.intention_path = self.path + '/Intentions'
-        self.strategic_path = self.path + '/Strategic'
+        self.strategic_4D_path = self.path + '/Strategic/4D'
+        self.strategic_2D_path = self.path + '/Strategic/2D'
+        self.strategic_1D_path = self.path + '/Strategic/1D'
         self.G = ox.load_graphml(f'{self.path}/streets_new.graphml') # Load the street graph
         self.nodes, self.edges = ox.graph_to_gdfs(self.G) # Load the nodes and edges from the graph
         # Aircraft related 
@@ -29,7 +31,7 @@ class StrategicScenarioMaker:
         """Takes all the strategically optimised intention files and converts them to
         scenario files."""
         # Get all the files
-        strategic_files = [x for x in os.listdir(self.strategic_path) if '120_2.out' in x]
+        strategic_files = [x for x in os.listdir(self.strategic_path) if '.out' in x]
         
         for filename in strategic_files:
             with open(self.strategic_path + '/' + filename, 'r') as f:
