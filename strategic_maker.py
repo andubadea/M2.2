@@ -14,11 +14,12 @@ class StrategicScenarioMaker:
         # City related parameters
         self.city = 'Vienna' # City name
         self.path = f'{self.city}' # Folder path
-        self.scenario_path = self.path + '/Scenarios/Strategic'
-        self.intention_path = self.path + '/Intentions'
-        self.strategic_4D_path = self.path + '/Strategic/4D'
-        self.strategic_2D_path = self.path + '/Strategic/2D'
-        self.strategic_1D_path = self.path + '/Strategic/1D'
+        self.scenario_4D_path = self.path + '/Base Scenarios/4D/'
+        self.scenario_2D_path = self.path + '/Base Scenarios/2D/'
+        self.scenario_1D_path = self.path + '/Base Scenarios/1D/'
+        self.strategic_4D_path = self.path + '/Strategic/4D/'
+        self.strategic_2D_path = self.path + '/Strategic/2D/'
+        self.strategic_1D_path = self.path + '/Strategic/1D/'
         self.G = ox.load_graphml(f'{self.path}/streets_new.graphml') # Load the street graph
         self.nodes, self.edges = ox.graph_to_gdfs(self.G) # Load the nodes and edges from the graph
         # Aircraft related 
@@ -27,14 +28,14 @@ class StrategicScenarioMaker:
         self.num_cpu = 32
         return
     
-    def create_scenario_from_strategic(self):
+    def create_4D_scenarios_from_strategic(self):
         """Takes all the strategically optimised intention files and converts them to
         scenario files."""
         # Get all the files
-        strategic_files = [x for x in os.listdir(self.strategic_path) if '.out' in x]
+        strategic_files = [x for x in os.listdir(self.strategic_4D_path) if '.out' in x]
         
         for filename in strategic_files:
-            with open(self.strategic_path + '/' + filename, 'r') as f:
+            with open(self.strategic_path + filename, 'r') as f:
                 lines = f.readlines()
             
             # Multiprocessed line processing is fast
@@ -43,7 +44,7 @@ class StrategicScenarioMaker:
                 scen_lines = list(tqdm.tqdm(p.imap(self.get_scenario_text_from_intention_line, lines), total = len(lines)))
                 
             # Save em to file
-            with open(self.strategic_path + '/' + filename.replace('.out', '.scn'), 'w') as f:
+            with open(self.scenario_4D_path + filename.replace('.out', '.scn'), 'w') as f:
                 sorted_lines = self.natural_sort(scen_lines)
                 f.write(''.join(sorted_lines))
                     
@@ -177,7 +178,7 @@ class StrategicScenarioMaker:
 def main():
     maker = StrategicScenarioMaker()
     # Create strategic scenarios
-    maker.create_scenario_from_strategic()
+    maker.create_4D_scenarios_from_strategic()
     return
 
 if __name__ == "__main__":
