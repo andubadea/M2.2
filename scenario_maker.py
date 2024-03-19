@@ -21,9 +21,9 @@ class ScenarioMaker:
         self.tactical = ['NoCR', 'SB']
         #self.strategic = ['RALT', '1D', '2D', '4D', '4DRTA']
         self.strategic = ['RALT','4D', '4DRTA']
-        self.delay_mag = [0, 10, 30, 60]
-        self.delay_prob = [0, 10, 30, 50]
-        self.wind_mag = [0, 2, 4, 6, 8]
+        self.delay_mag = [10, 30, 60]
+        self.delay_prob = [10, 30, 50]
+        self.wind_mag = [2, 4, 6, 8]
         self.wind_dir = [0, 90, 180, 270]
         self.repetition = [1,2,3,4,5]
         return

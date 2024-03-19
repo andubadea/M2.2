@@ -17,10 +17,11 @@ class StrategicScenarioMaker:
         self.scenario_4D_path = self.path + '/Base Scenarios/4D/'
         self.scenario_2D_path = self.path + '/Base Scenarios/2D/'
         self.scenario_1D_path = self.path + '/Base Scenarios/1D/'
+        self.scenario_std_path = self.path + '/Base Scenarios/Standard/'
         self.strategic_4D_path = self.path + '/Strategic/4D/'
         self.strategic_2D_path = self.path + '/Strategic/2D/'
         self.strategic_1D_path = self.path + '/Strategic/1D/'
-        self.G = ox.load_graphml(f'{self.path}/streets_new.graphml') # Load the street graph
+        self.G = ox.load_graphml(f'{self.path}/streets.graphml') # Load the street graph
         self.nodes, self.edges = ox.graph_to_gdfs(self.G) # Load the nodes and edges from the graph
         # Aircraft related 
         self.speed = 30
@@ -49,8 +50,72 @@ class StrategicScenarioMaker:
                 f.write(''.join(sorted_lines))
                     
         return
-                
+    
+    def create_1D2D_scenarios_from_strategic(self):
+        """For these ones we only need to apply the allocated altitude and
+        departure time to the standard scenarios."""
+        strategic_1D_files = [x for x in os.listdir(self.strategic_1D_path) if '.out' in x]
+        strategic_2D_files = [x for x in os.listdir(self.strategic_2D_path) if '.out' in x]
         
+        for filename in strategic_1D_files:
+            # Get the correct standard base scenario
+            standard_scen = self.scenario_std_path + filename.replace('.out', '.scn')
+            with open(standard_scen, 'r') as f:
+                lines_std = f.readlines()
+                
+            # Make copies of this one
+            lines_std_1D = lines_std.copy()
+            lines_std_2D = lines_std.copy()
+                
+            # Now also read the strategic out file
+            with open(self.strategic_1D_path + filename, 'r') as f:
+                lines_1D = f.readlines()
+                
+            with open(self.strategic_1D_path + filename, 'r') as f:
+                lines_2D = f.readlines()
+                
+            # Order the strategic out nicely
+            lines_1D = self.natural_sort(lines_1D)
+            lines_2D = self.natural_sort(lines_1D)
+            
+            # They should have the same number of lines
+            assert(len(lines_1D) == len(lines_std))
+            
+            for i in range(len(lines_1D)):
+                # Only interested in the altitude
+                alt = int(lines_1D[i].split(',')[1]) * self.layer_height
+                # Now replace this altitude in the standard line
+                std_split = lines_std_1D[i].split(',')
+                std_split[5] = str(alt)
+                # Now join it again and replace it
+                lines_std_1D[i] = ','.join(std_split)
+            
+            # write the standard 1D scen
+            with open(self.scenario_1D_path + filename.replace('.out', '.scn'), 'w') as f:
+                f.write(''.join(lines_std_1D))
+        for filename in strategic_1D_files:
+            # Get the correct standard base scenario
+            standard_scen = self.scenario_std_path + filename.replace('.out', '.scn')
+            with open(standard_scen, 'r') as f:
+                lines_std = f.readlines()
+                
+            # Now do the same for the 2Ds
+            for i in range(len(lines_2D)):
+                # Only interested in the altitude
+                alt = int(lines_2D[i].split(',')[1]) * self.layer_height
+                time = lines_2D[i].split(',')[2]
+                # Now replace this altitude in the standard line
+                std_split = lines_std_2D[i].split(',')
+                std_split[5] = str(alt)
+                # Also do the time
+                std_split[0] = std_split[0].replace(std_split[0][:8], time)
+                # Now join it again and replace it
+                lines_std_2D[i] = ','.join(std_split)
+            
+            # write the standard 2D scen
+            with open(self.scenario_2D_path + filename.replace('.out', '.scn'), 'w') as f:
+                f.write(''.join(lines_std_2D))
+                
     def kwikdist(self, lata: float, lona: float, latb:float, lonb:float) -> float:
         """Gives quick and dirty dist [m]
         from lat/lon. (note: does not work well close to poles)"""
@@ -178,7 +243,8 @@ class StrategicScenarioMaker:
 def main():
     maker = StrategicScenarioMaker()
     # Create strategic scenarios
-    maker.create_4D_scenarios_from_strategic()
+    #maker.create_4D_scenarios_from_strategic()
+    maker.create_1D2D_scenarios_from_strategic()
     return
 
 if __name__ == "__main__":
