@@ -35,7 +35,7 @@ class StrategicScenarioMaker:
         strategic_files = [x for x in os.listdir(self.strategic_4D_path) if '.out' in x]
         
         for filename in strategic_files:
-            with open(self.strategic_path + filename, 'r') as f:
+            with open(self.strategic_4D_path + filename, 'r') as f:
                 lines = f.readlines()
             
             # Multiprocessed line processing is fast
