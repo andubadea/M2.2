@@ -15,7 +15,7 @@ class ScenarioMaker:
         # Aircraft related 
         self.speed = 30
         self.layer_height = 30 #ft
-        self.num_cpu = 16
+        self.num_cpu = 32
         # Independent variables
         self.demand = [60, 90, 120]
         self.tactical = ['NoCR', 'SB']
