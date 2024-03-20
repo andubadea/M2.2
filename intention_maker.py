@@ -305,7 +305,7 @@ def main():
     # Create the intentions
     maker.make_intentions()
     # Create default scenarios
-    maker.make_default_scenarios()
+    #maker.make_default_scenarios()
     return
 
 if __name__ == "__main__":
