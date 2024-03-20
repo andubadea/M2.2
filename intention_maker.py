@@ -9,6 +9,7 @@ import time
 import copy
 import os
 import matplotlib.pyplot as plt
+import tqdm
 
 from multiprocessing import Pool
 
@@ -16,16 +17,16 @@ from multiprocessing import Pool
 class IntentionMaker:
     def __init__(self) -> None:
         # Design variables
-        self.traffic_demand_levels = [60, 90, 120]# aircraft per minute
+        self.traffic_demand_levels = [120, 180, 240, 300, 360]# aircraft per minute
         self.repetitions_per_demand_level = 5
         self.min_mission_distance = 1000 #metres
         self.max_mission_distance = 5000 #metres
         self.intention_timespan = 90 # minutes
         self.min_distance_between_origins = 300 #metres
-        self.num_origins = 200
+        self.num_origins = 300
         random.seed(0)
         np.random.seed(0)
-        self.layer_height = 30
+        self.layer_height = 50 #ft
         self.max_altitude = 500
         self.speed = 30
         self.planning_time_step = 30 #seconds
@@ -37,6 +38,9 @@ class IntentionMaker:
         self.scenario_path = self.path + '/Base Scenarios/Standard'
         self.G = ox.load_graphml(f'{self.path}/streets.graphml') # Load the street graph
         self.nodes, self.edges = ox.graph_to_gdfs(self.G) # Load the nodes and edges from the graph
+        
+        # Num cpu
+        self.num_cpu = 32
         
     def make_intentions(self) -> None:
         """Function that creates the intentions and saves them in files in function of the
@@ -61,6 +65,40 @@ class IntentionMaker:
                     for line in scenario_data:
                         f.write(line)
         return
+    
+    def make_intentions_mp(self) -> None:
+        """Function that creates the intentions and saves them in files in function of the
+        parameters given in the init function.
+        """
+        # First, make an intention directory if there is none.
+        os.makedirs(self.intention_path, exist_ok=True)
+        os.makedirs(self.scenario_path, exist_ok=True)
+        # Then, we for loop over demand levels and repetitions
+        imp_arr = []
+        for demand in self.traffic_demand_levels:
+            for repetition in range(self.repetitions_per_demand_level):
+                imp_arr.append([demand, repetition])
+                # Get origins and destinations
+                origins, destinations = self.create_origins_destinations()
+                # Get the intention data
+                intention_data, scenario_data = self.create_intention(demand, origins, destinations)
+        with Pool(self.num_cpu) as p:
+            tqdm.tqdm(p.imap(self.make_one_intention, imp_arr), total = len(imp_arr))
+        return
+    
+    def make_one_intention(self, imp):
+        demand, repetition = imp
+        origins, destinations = self.create_origins_destinations()
+        intention_data, scenario_data = self.create_intention(demand, origins, destinations)
+        # Create the file and write to it
+        with open(self.intention_path + f'/Flight_intention_{demand}_{repetition+1}.txt', 'w') as f:
+            for line in intention_data:
+                f.write(';'.join(line) + '\n')
+                
+        with open(self.scenario_path + f'/Flight_intention_{demand}_{repetition+1}.scn', 'w') as f:
+            for line in scenario_data:
+                f.write(line)
+        
     
     def make_default_scenarios(self) -> None:
         """Function that, given the existence of intentions, creates baseline scenarios
@@ -303,7 +341,7 @@ def main():
     # make an intention maker instance
     maker = IntentionMaker()
     # Create the intentions
-    maker.make_intentions()
+    maker.make_intentions_mp()
     # Create default scenarios
     #maker.make_default_scenarios()
     return
