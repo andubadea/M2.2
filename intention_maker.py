@@ -338,7 +338,7 @@ def main():
     # make an intention maker instance
     maker = IntentionMaker()
     # Create the intentions
-    print(len(maker.create_origins_destinations()[0]))
+    maker.make_intentions_mp()
     # Create default scenarios
     #maker.make_default_scenarios()
     return
