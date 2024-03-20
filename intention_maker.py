@@ -40,7 +40,7 @@ class IntentionMaker:
         self.nodes, self.edges = ox.graph_to_gdfs(self.G) # Load the nodes and edges from the graph
         
         # Num cpu
-        self.num_cpu = 8
+        self.num_cpu = 25
         
     def make_intentions(self) -> None:
         """Function that creates the intentions and saves them in files in function of the
