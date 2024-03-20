@@ -21,8 +21,9 @@ class StrategicScenarioMaker:
         self.strategic_4D_path = self.path + '/Strategic/4D/'
         self.strategic_2D_path = self.path + '/Strategic/2D/'
         self.strategic_1D_path = self.path + '/Strategic/1D/'
-        self.G = ox.load_graphml(f'{self.path}/streets.graphml') # Load the street graph
+        self.G = ox.load_graphml(f'{self.path}/Graph_processing/streets_copy.graphml') # Load the street graph
         self.nodes, self.edges = ox.graph_to_gdfs(self.G) # Load the nodes and edges from the graph
+        print(self.nodes.index.to_list())
         # Aircraft related 
         self.speed = 30
         self.layer_height = 30 #ft
@@ -51,70 +52,41 @@ class StrategicScenarioMaker:
                     
         return
     
-    def create_1D2D_scenarios_from_strategic(self):
+    def create_1D_scenarios_from_strategic(self):
         """For these ones we only need to apply the allocated altitude and
         departure time to the standard scenarios."""
         strategic_1D_files = [x for x in os.listdir(self.strategic_1D_path) if '.out' in x]
-        strategic_2D_files = [x for x in os.listdir(self.strategic_2D_path) if '.out' in x]
         
         for filename in strategic_1D_files:
-            # Get the correct standard base scenario
-            standard_scen = self.scenario_std_path + filename.replace('.out', '.scn')
-            with open(standard_scen, 'r') as f:
-                lines_std = f.readlines()
-                
-            # Make copies of this one
-            lines_std_1D = lines_std.copy()
-            lines_std_2D = lines_std.copy()
-                
+            print(f'Processing {filename}')
             # Now also read the strategic out file
             with open(self.strategic_1D_path + filename, 'r') as f:
                 lines_1D = f.readlines()
-                
-            with open(self.strategic_1D_path + filename, 'r') as f:
-                lines_2D = f.readlines()
-                
-            # Order the strategic out nicely
-            lines_1D = self.natural_sort(lines_1D)
-            lines_2D = self.natural_sort(lines_1D)
             
-            # They should have the same number of lines
-            assert(len(lines_1D) == len(lines_std))
+            with Pool(self.num_cpu) as p:
+                scen_lines = list(tqdm.tqdm(p.imap(self.get_scenario_text_from_intention_line, lines_1D), total = len(lines_1D)))
             
-            for i in range(len(lines_1D)):
-                # Only interested in the altitude
-                alt = int(lines_1D[i].split(',')[1]) * self.layer_height
-                # Now replace this altitude in the standard line
-                std_split = lines_std_1D[i].split(',')
-                std_split[5] = str(alt)
-                # Now join it again and replace it
-                lines_std_1D[i] = ','.join(std_split)
-            
-            # write the standard 1D scen
+            # Save em to file
             with open(self.scenario_1D_path + filename.replace('.out', '.scn'), 'w') as f:
-                f.write(''.join(lines_std_1D))
-        for filename in strategic_1D_files:
-            # Get the correct standard base scenario
-            standard_scen = self.scenario_std_path + filename.replace('.out', '.scn')
-            with open(standard_scen, 'r') as f:
-                lines_std = f.readlines()
-                
-            # Now do the same for the 2Ds
-            for i in range(len(lines_2D)):
-                # Only interested in the altitude
-                alt = int(lines_2D[i].split(',')[1]) * self.layer_height
-                time = lines_2D[i].split(',')[2]
-                # Now replace this altitude in the standard line
-                std_split = lines_std_2D[i].split(',')
-                std_split[5] = str(alt)
-                # Also do the time
-                std_split[0] = std_split[0].replace(std_split[0][:8], time)
-                # Now join it again and replace it
-                lines_std_2D[i] = ','.join(std_split)
+                sorted_lines = self.natural_sort(scen_lines)
+                f.write(''.join(sorted_lines))
+    
+    def create_2D_scenarios_from_strategic(self):     
+        strategic_2D_files = [x for x in os.listdir(self.strategic_2D_path) if '.out' in x]       
+        for filename in strategic_2D_files:
+            print(f'Processing {filename}')
+            # Now also read the strategic out file
+            with open(self.strategic_2D_path + filename, 'r') as f:
+                lines_2D = f.readlines()
             
-            # write the standard 2D scen
+            with Pool(self.num_cpu) as p:
+                scen_lines = list(tqdm.tqdm(p.imap(self.get_scenario_text_from_intention_line, lines_2D), total = len(lines_2D)))
+            
+            # Save em to file
             with open(self.scenario_2D_path + filename.replace('.out', '.scn'), 'w') as f:
-                f.write(''.join(lines_std_2D))
+                sorted_lines = self.natural_sort(scen_lines)
+                f.write(''.join(sorted_lines))
+                
                 
     def kwikdist(self, lata: float, lona: float, latb:float, lonb:float) -> float:
         """Gives quick and dirty dist [m]
@@ -160,6 +132,7 @@ class StrategicScenarioMaker:
         # We also want the next waypoint coords
         nxt_node = int(line_split[5])
         nxtwp_lon, nxtwp_lat = self.nodes.loc[nxt_node]['geometry'].x, self.nodes.loc[nxt_node]['geometry'].y
+        street_number = self.edges.loc[(origin_node, nxt_node, 0), 'stroke']
         hdg = self.kwikqdr(origin_lat, origin_lon, nxtwp_lat, nxtwp_lon)
         # We can now initialise the CRE text
         scen_text = f'{dep_time}>M22CRE {acid},M600,{origin_lat},{origin_lon},{hdg},{alt},{self.speed}'
@@ -172,15 +145,20 @@ class StrategicScenarioMaker:
         for i, wpdata in enumerate(route_arr):
             # Get the data from the waypoint_arr
             current_node = int(wpdata[0])
-            u = current_node
-            v = int(route_arr[:,0][i+1])
             lon, lat = self.nodes.loc[current_node]['geometry'].x, self.nodes.loc[current_node]['geometry'].y
             
             rta = wpdata[1]
             if rta == '00:00:00':
                 rta = ''
                 
+            if i == 0:
+                # origin, not a turn
+                scen_text += f',{lat},{lon},,,{rta},FLYBY,{street_number}'
+                continue
+                
             # Now get the street number
+            v = current_node
+            u = int(route_arr[:,0][i-1])
             street_number = self.edges.loc[(u, v, 0), 'stroke']
             
             # Now append the waypoint information to the scen_text
@@ -188,14 +166,13 @@ class StrategicScenarioMaker:
             if i == len(route_arr)-1:
                 # Last waypoint, add a \n
                 scen_text += f',{lat},{lon},,,{rta},FLYTURN,{street_number}\n'
-            elif i == 0:
-                # origin, not a turn
-                scen_text += f',{lat},{lon},,,{rta},FLYBY,{street_number}'
             else:
                 # We need to find the angle to determine whether it is a turn or not
                 # Get the needed stuff
-                lat_prev, lon_prev = float(route_arr[i-1][0]),float(route_arr[i-1][1])
-                lat_next, lon_next = float(route_arr[i+1][0]),float(route_arr[i+1][1])
+                prev_node = int(route_arr[:,0][i-1])
+                next_node = int(route_arr[:,0][i+1])
+                lat_prev, lon_prev = self.nodes.loc[prev_node]['geometry'].x, self.nodes.loc[prev_node]['geometry'].y
+                lat_next, lon_next = self.nodes.loc[next_node]['geometry'].x, self.nodes.loc[next_node]['geometry'].y
                 
                 # Get the angle
                 d1=self.kwikqdr(lat_prev,lon_prev,lat,lon)
@@ -224,7 +201,7 @@ def main():
     maker = StrategicScenarioMaker()
     # Create strategic scenarios
     #maker.create_4D_scenarios_from_strategic()
-    maker.create_1D2D_scenarios_from_strategic()
+    maker.create_1D_scenarios_from_strategic()
     return
 
 if __name__ == "__main__":
