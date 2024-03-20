@@ -40,7 +40,7 @@ class IntentionMaker:
         self.nodes, self.edges = ox.graph_to_gdfs(self.G) # Load the nodes and edges from the graph
         
         # Num cpu
-        self.num_cpu = 32
+        self.num_cpu = 8
         
     def make_intentions(self) -> None:
         """Function that creates the intentions and saves them in files in function of the
@@ -80,7 +80,7 @@ class IntentionMaker:
                 imp_arr.append([demand, repetition])
                 
         with Pool(self.num_cpu) as p:
-            tqdm.tqdm(p.imap(self.make_one_intention, imp_arr), total = len(imp_arr))
+            print(list(tqdm.tqdm(p.imap(self.make_one_intention, imp_arr), total = len(imp_arr))))
         return
     
     def make_one_intention(self, imp):
