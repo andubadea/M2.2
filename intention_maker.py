@@ -23,7 +23,7 @@ class IntentionMaker:
         self.max_mission_distance = 5000 #metres
         self.intention_timespan = 90 # minutes
         self.min_distance_between_origins = 300 #metres
-        self.num_origins = 300
+        self.num_origins = 200
         random.seed(0)
         np.random.seed(0)
         self.layer_height = 50 #ft
