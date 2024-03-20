@@ -78,10 +78,7 @@ class IntentionMaker:
         for demand in self.traffic_demand_levels:
             for repetition in range(self.repetitions_per_demand_level):
                 imp_arr.append([demand, repetition])
-                # Get origins and destinations
-                origins, destinations = self.create_origins_destinations()
-                # Get the intention data
-                intention_data, scenario_data = self.create_intention(demand, origins, destinations)
+                
         with Pool(self.num_cpu) as p:
             tqdm.tqdm(p.imap(self.make_one_intention, imp_arr), total = len(imp_arr))
         return
