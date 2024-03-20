@@ -22,8 +22,8 @@ class IntentionMaker:
         self.min_mission_distance = 1000 #metres
         self.max_mission_distance = 5000 #metres
         self.intention_timespan = 90 # minutes
-        self.min_distance_between_origins = 300 #metres
-        self.num_origins = 200
+        self.min_distance_between_origins = 200 #metres
+        self.num_origins = 400
         random.seed(0)
         np.random.seed(0)
         self.layer_height = 50 #ft
@@ -338,7 +338,7 @@ def main():
     # make an intention maker instance
     maker = IntentionMaker()
     # Create the intentions
-    maker.make_intentions_mp()
+    print(len(maker.create_origins_destinations()[0]))
     # Create default scenarios
     #maker.make_default_scenarios()
     return
