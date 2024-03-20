@@ -29,7 +29,7 @@ class IntentionMaker:
         self.layer_height = 50 #ft
         self.max_altitude = 500
         self.speed = 30
-        self.planning_time_step = 30 #seconds
+        self.planning_time_step = 15 #seconds
         
         # City related parameters
         self.city = 'Vienna' # City name
