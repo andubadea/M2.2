@@ -170,8 +170,8 @@ class StrategicScenarioMaker:
                 # Get the needed stuff
                 prev_node = int(route_arr[:,0][i-1])
                 next_node = int(route_arr[:,0][i+1])
-                lat_prev, lon_prev = self.nodes.at[prev_node,'geometry'].x, self.nodes.at[prev_node,'geometry'].y
-                lat_next, lon_next = self.nodes.at[next_node,'geometry'].x, self.nodes.at[next_node,'geometry'].y
+                lon_prev, lat_prev = self.nodes.at[prev_node,'geometry'].x, self.nodes.at[prev_node,'geometry'].y
+                lon_next, lat_next = self.nodes.at[next_node,'geometry'].x, self.nodes.at[next_node,'geometry'].y
                 
                 # Get the angle
                 d1=self.kwikqdr(lat_prev,lon_prev,lat,lon)
