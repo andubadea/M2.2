@@ -23,7 +23,6 @@ class StrategicScenarioMaker:
         self.strategic_1D_path = self.path + '/Strategic/1D/'
         self.G = ox.load_graphml(f'{self.path}/Graph_processing/streets_copy.graphml') # Load the street graph
         self.nodes, self.edges = ox.graph_to_gdfs(self.G) # Load the nodes and edges from the graph
-        print(self.nodes.index.to_list())
         # Aircraft related 
         self.speed = 30
         self.layer_height = 30 #ft
@@ -128,11 +127,11 @@ class StrategicScenarioMaker:
         alt = int(line_split[1]) * self.layer_height
         dep_time = line_split[2]
         origin_node = int(line_split[3])
-        origin_lon, origin_lat = self.nodes.loc[origin_node]['geometry'].x, self.nodes.loc[origin_node]['geometry'].y
+        origin_lon, origin_lat = self.nodes.at[origin_node,'geometry'].x, self.nodes.at[origin_node,'geometry'].y
         # We also want the next waypoint coords
         nxt_node = int(line_split[5])
-        nxtwp_lon, nxtwp_lat = self.nodes.loc[nxt_node]['geometry'].x, self.nodes.loc[nxt_node]['geometry'].y
-        street_number = self.edges.loc[(origin_node, nxt_node, 0), 'stroke']
+        nxtwp_lon, nxtwp_lat = self.nodes.at[nxt_node,'geometry'].x, self.nodes.at[nxt_node,'geometry'].y
+        street_number = self.edges.at[(origin_node, nxt_node, 0), 'stroke']
         hdg = self.kwikqdr(origin_lat, origin_lon, nxtwp_lat, nxtwp_lon)
         # We can now initialise the CRE text
         scen_text = f'{dep_time}>M22CRE {acid},M600,{origin_lat},{origin_lon},{hdg},{alt},{self.speed}'
@@ -145,7 +144,7 @@ class StrategicScenarioMaker:
         for i, wpdata in enumerate(route_arr):
             # Get the data from the waypoint_arr
             current_node = int(wpdata[0])
-            lon, lat = self.nodes.loc[current_node]['geometry'].x, self.nodes.loc[current_node]['geometry'].y
+            lon, lat = self.nodes.at[current_node,'geometry'].x, self.nodes.at[current_node,'geometry'].y
             
             rta = wpdata[1]
             if rta == '00:00:00':
@@ -159,7 +158,7 @@ class StrategicScenarioMaker:
             # Now get the street number
             v = current_node
             u = int(route_arr[:,0][i-1])
-            street_number = self.edges.loc[(u, v, 0), 'stroke']
+            street_number = self.edges.at[(u, v, 0), 'stroke']
             
             # Now append the waypoint information to the scen_text
             # First and last waypoint always a turn
@@ -171,8 +170,8 @@ class StrategicScenarioMaker:
                 # Get the needed stuff
                 prev_node = int(route_arr[:,0][i-1])
                 next_node = int(route_arr[:,0][i+1])
-                lat_prev, lon_prev = self.nodes.loc[prev_node]['geometry'].x, self.nodes.loc[prev_node]['geometry'].y
-                lat_next, lon_next = self.nodes.loc[next_node]['geometry'].x, self.nodes.loc[next_node]['geometry'].y
+                lat_prev, lon_prev = self.nodes.at[prev_node,'geometry'].x, self.nodes.at[prev_node,'geometry'].y
+                lat_next, lon_next = self.nodes.at[next_node,'geometry'].x, self.nodes.at[next_node,'geometry'].y
                 
                 # Get the angle
                 d1=self.kwikqdr(lat_prev,lon_prev,lat,lon)
