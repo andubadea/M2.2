@@ -12,12 +12,12 @@ import re
 class StrategicScenarioMaker:
     def __init__(self) -> None:
         # City related parameters
-        self.city = 'Vienna' # City name
+        self.city = './Vienna' # City name
         self.path = f'{self.city}' # Folder path
-        self.scenario_4D_path = self.path + '/Base Scenarios/4D/'
-        self.scenario_2D_path = self.path + '/Base Scenarios/2D/'
-        self.scenario_1D_path = self.path + '/Base Scenarios/1D/'
-        self.scenario_std_path = self.path + '/Base Scenarios/Standard/'
+        self.scenario_4D_path = self.path + '/Base_Scenarios/4D/'
+        self.scenario_2D_path = self.path + '/Base_Scenarios/2D/'
+        self.scenario_1D_path = self.path + '/Base_Scenarios/1D/'
+        self.scenario_std_path = self.path + '/Base_Scenarios/Standard/'
         self.strategic_4D_path = self.path + '/Strategic/4D/'
         self.strategic_2D_path = self.path + '/Strategic/2D/'
         self.strategic_1D_path = self.path + '/Strategic/1D/'
@@ -26,9 +26,31 @@ class StrategicScenarioMaker:
         # Aircraft related 
         self.speed = 30
         self.layer_height = 30 #ft
-        self.num_cpu = 32
+        self.num_cpu = 30
         return
     
+    def create_all_scenarios_from_strategic(self):
+        strategic_files = [self.strategic_4D_path + x for x in os.listdir(self.strategic_4D_path) if '.out' in x]
+        strategic_files += [self.strategic_2D_path + x for x in os.listdir(self.strategic_2D_path) if '.out' in x]
+        
+        with Pool(self.num_cpu) as p:
+            output = list(tqdm.tqdm(p.imap(self.create_one_scenario, strategic_files), total = len(strategic_files)))
+        
+        
+    def create_one_scenario(self, filename):
+        with open(filename, 'r') as f:
+            lines = f.readlines()
+            
+        scen_lines = []
+        for line in lines:
+            scen_lines.append(self.get_scenario_text_from_intention_line(line))
+        
+        output_name = filename.replace('Strategic', 'Base_Scenarios')
+
+        with open(output_name.replace('.out', '.scn'), 'w') as f:
+            sorted_lines = self.natural_sort(scen_lines)
+            f.write(''.join(sorted_lines))
+            
     def create_4D_scenarios_from_strategic(self):
         """Takes all the strategically optimised intention files and converts them to
         scenario files."""
@@ -199,8 +221,7 @@ class StrategicScenarioMaker:
 def main():
     maker = StrategicScenarioMaker()
     # Create strategic scenarios
-    #maker.create_4D_scenarios_from_strategic()
-    maker.create_1D_scenarios_from_strategic()
+    maker.create_all_scenarios_from_strategic()
     return
 
 if __name__ == "__main__":
