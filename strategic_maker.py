@@ -183,8 +183,7 @@ class StrategicScenarioMaker:
 def main():
     maker = StrategicScenarioMaker()
     # Create strategic scenarios
-    #maker.create_all_scenarios_from_strategic()
-    maker.create_one_scenario('Vienna/Strategic/2D/Flight_intention_120_1.out')
+    maker.create_all_scenarios_from_strategic()
     return
 
 if __name__ == "__main__":
