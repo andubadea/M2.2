@@ -26,7 +26,7 @@ class StrategicScenarioMaker:
         # Aircraft related 
         self.speed = 30
         self.layer_height = 30 #ft
-        self.num_cpu = 30
+        self.num_cpu = 8
         return
     
     def create_all_scenarios_from_strategic(self):
@@ -36,7 +36,6 @@ class StrategicScenarioMaker:
         with Pool(self.num_cpu) as p:
             output = list(tqdm.tqdm(p.imap(self.create_one_scenario, strategic_files), total = len(strategic_files)))
         
-        
     def create_one_scenario(self, filename):
         with open(filename, 'r') as f:
             lines = f.readlines()
@@ -45,69 +44,32 @@ class StrategicScenarioMaker:
         for line in lines:
             scen_lines.append(self.get_scenario_text_from_intention_line(line))
         
-        output_name = filename.replace('Strategic', 'Base_Scenarios')
+        output_name = filename.replace('Strategic', 'Base_Scenarios').replace('.out','.scn')
 
-        with open(output_name.replace('.out', '.scn'), 'w') as f:
+        with open(output_name, 'w') as f:
             sorted_lines = self.natural_sort(scen_lines)
             f.write(''.join(sorted_lines))
             
-    def create_4D_scenarios_from_strategic(self):
-        """Takes all the strategically optimised intention files and converts them to
-        scenario files."""
-        # Get all the files
-        strategic_files = [x for x in os.listdir(self.strategic_4D_path) if '.out' in x]
-        
-        for filename in strategic_files:
-            with open(self.strategic_4D_path + filename, 'r') as f:
-                lines = f.readlines()
+        if '2D' in filename:
+            lines_1D = []
+            # We can create the 1D scenario out of this one as well by simply replacing the
+            # time with the intention time.
+            intention_name = filename.replace('/Strategic/2D/', '/Intentions/').replace('.out','.txt')
+            with open(intention_name, 'r') as f:
+                intention_lines = f.readlines()
             
-            # Multiprocessed line processing is fast
-            print(f'Processing {filename}')  
-            with Pool(self.num_cpu) as p:
-                scen_lines = list(tqdm.tqdm(p.imap(self.get_scenario_text_from_intention_line, lines), total = len(lines)))
-                
-            # Save em to file
-            with open(self.scenario_4D_path + filename.replace('.out', '.scn'), 'w') as f:
-                sorted_lines = self.natural_sort(scen_lines)
-                f.write(''.join(sorted_lines))
-                    
-        return
-    
-    def create_1D_scenarios_from_strategic(self):
-        """For these ones we only need to apply the allocated altitude and
-        departure time to the standard scenarios."""
-        strategic_1D_files = [x for x in os.listdir(self.strategic_1D_path) if '.out' in x]
-        
-        for filename in strategic_1D_files:
-            print(f'Processing {filename}')
-            # Now also read the strategic out file
-            with open(self.strategic_1D_path + filename, 'r') as f:
-                lines_1D = f.readlines()
+            # Go through sorted lines, replace the time, save
+            for i, line in enumerate(sorted_lines):
+                # Get the correct time from intention
+                correct_time = intention_lines[i].split(';')[2]
+                acid = intention_lines[i].split(';')[0]
+                # Make sure that the acid is the same
+                if f' {acid},' in line:
+                    # Replace the time, first 8 characters
+                    lines_1D.append(line.replace(line[:8], correct_time))
             
-            with Pool(self.num_cpu) as p:
-                scen_lines = list(tqdm.tqdm(p.imap(self.get_scenario_text_from_intention_line, lines_1D), total = len(lines_1D)))
-            
-            # Save em to file
-            with open(self.scenario_1D_path + filename.replace('.out', '.scn'), 'w') as f:
-                sorted_lines = self.natural_sort(scen_lines)
-                f.write(''.join(sorted_lines))
-    
-    def create_2D_scenarios_from_strategic(self):     
-        strategic_2D_files = [x for x in os.listdir(self.strategic_2D_path) if '.out' in x]       
-        for filename in strategic_2D_files:
-            print(f'Processing {filename}')
-            # Now also read the strategic out file
-            with open(self.strategic_2D_path + filename, 'r') as f:
-                lines_2D = f.readlines()
-            
-            with Pool(self.num_cpu) as p:
-                scen_lines = list(tqdm.tqdm(p.imap(self.get_scenario_text_from_intention_line, lines_2D), total = len(lines_2D)))
-            
-            # Save em to file
-            with open(self.scenario_2D_path + filename.replace('.out', '.scn'), 'w') as f:
-                sorted_lines = self.natural_sort(scen_lines)
-                f.write(''.join(sorted_lines))
-                
+            with open(output_name.replace('2D','1D'), 'w') as f:
+                f.write(''.join(lines_1D))
                 
     def kwikdist(self, lata: float, lona: float, latb:float, lonb:float) -> float:
         """Gives quick and dirty dist [m]
@@ -221,7 +183,8 @@ class StrategicScenarioMaker:
 def main():
     maker = StrategicScenarioMaker()
     # Create strategic scenarios
-    maker.create_all_scenarios_from_strategic()
+    #maker.create_all_scenarios_from_strategic()
+    maker.create_one_scenario('Vienna/Strategic/2D/Flight_intention_120_1.out')
     return
 
 if __name__ == "__main__":
