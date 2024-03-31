@@ -78,7 +78,7 @@ class StrategicScenarioMaker:
             # Set the seed to density + repetition
             random.seed(int(filename.split('_')[-1].replace('.out','')) + int(filename.split('_')[-2]))
             lines_std = []
-            for line in enumerate(lines_1D):
+            for line in lines_1D:
                 # Pick a random altitude
                 alt = random.choice(altitudes)
                 split_line = line.split(',')
