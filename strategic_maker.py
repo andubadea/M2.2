@@ -27,15 +27,15 @@ class StrategicScenarioMaker:
         self.speed = 30
         self.layer_height = 50 #ft
         self.max_altitude = 500
-        self.num_cpu = 30
+        self.num_cpu = 5
         return
     
     def create_all_scenarios_from_strategic(self):
-        strategic_files = [self.strategic_4D_path + x for x in os.listdir(self.strategic_4D_path) if '.out' in x]
-        strategic_files += [self.strategic_2D_path + x for x in os.listdir(self.strategic_2D_path) if '.out' in x]
+        #strategic_files = [self.strategic_4D_path + x for x in os.listdir(self.strategic_4D_path) if '.out' in x]
+        strategic_files = [self.strategic_2D_path + x for x in os.listdir(self.strategic_2D_path) if '.out' in x]
         
         with Pool(self.num_cpu) as p:
-            output = list(tqdm.tqdm(p.imap(self.create_one_scenario, strategic_files), total = len(strategic_files)))
+            _ = list(tqdm.tqdm(p.imap(self.create_one_scenario, strategic_files), total = len(strategic_files)))
         
     def create_one_scenario(self, filename):
         with open(filename, 'r') as f:
@@ -65,9 +65,7 @@ class StrategicScenarioMaker:
                 correct_time = intention_lines[i].split(';')[2]
                 acid = intention_lines[i].split(';')[0]
                 # Make sure that the acid is the same
-                if f' {acid},' in line:
-                    # Replace the time, first 8 characters
-                    lines_1D.append(line.replace(line[:8], correct_time))
+                lines_1D.append(line.replace(line[:8], correct_time))
             
             with open(output_name.replace('2D','1D'), 'w') as f:
                 f.write(''.join(lines_1D))

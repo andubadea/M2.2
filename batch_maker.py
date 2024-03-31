@@ -4,7 +4,7 @@ filename = 'Vienna/M2.2/m22batch.scn'
 
 with open(filename, 'w') as f:
     for scenario in os.listdir('Vienna/M2.2'):
-        if "Base" in scenario or "m22batch" in scenario:
+        if "m22batch" in scenario:
             continue
         scen_name = scenario.replace('.scn','')
         

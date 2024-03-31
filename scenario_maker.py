@@ -71,13 +71,13 @@ class ScenarioMaker:
         demand, tactical, strategic, delay_mag, delay_prob, wind_mag, wind_dir, repetition = args
         # If strategic is Random Alt, we load a standard scenario
         if strategic == 'RALT':
-            base_scen = self.scenario_path + f'Standard/Flight_intention_{demand}_{repetition}.scn'
+            base_scen = f'Standard/Flight_intention_{demand}_{repetition}.scn'
         # Else, we need to load a 1, 2 or 4 dof one
         elif strategic in ['1D', '2D', '4D']:
-            base_scen = self.scenario_path + f'{strategic}/Flight_intention_{demand}_{repetition}.scn'
+            base_scen = f'{strategic}/Flight_intention_{demand}_{repetition}.scn'
         # If RTA, we load the 4DoF
         elif strategic == '4DRTA':
-            base_scen = self.scenario_path + f'4D/Flight_intention_{demand}_{repetition}.scn'
+            base_scen = f'4D/Flight_intention_{demand}_{repetition}.scn'
         else:
             # weird
             print(f'Strategic {strategic} is not implemented.')
@@ -102,17 +102,18 @@ class ScenarioMaker:
             scen_text += '00:00:00>ENABLESPAWNPROTECTION\n'
         scen_text += '00:00:00>SCHEDULE 02:00:00 DELETEALL\n'
         scen_text += '00:00:00>SCHEDULE 02:00:01 HOLD\n'
+        scen_text += f'00:00:00>PCALL M2.2/Base_Scenarios/{base_scen}\n'
         scen_text += '00:00:00.00>FF\n\n'
         
         # Open base scen
-        with open(base_scen) as f:
-            base_scen_text = f.read()
+        #with open(base_scen) as f:
+            #base_scen_text = f.read()
             
         # Open final scenario file
         out_scen_name = f'M22_{demand}_{tactical}_{strategic}_{delay_mag}_{delay_prob}_{wind_dir}_{wind_mag}_{repetition}.scn'
         with open(self.output_path + out_scen_name, 'w') as f:
             f.write(scen_text)
-            f.write(base_scen_text)
+            #f.write(base_scen_text)
         return True
         
     @staticmethod
