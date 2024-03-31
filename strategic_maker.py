@@ -85,7 +85,7 @@ class StrategicScenarioMaker:
                 split_line[5] = str(alt)
                 lines_std.append(','.join(split_line))
             
-            with open(output_name.replace('1D','Standard'), 'w') as f:
+            with open(output_name.replace('2D','Standard'), 'w') as f:
                 f.write(''.join(lines_std))
                 
                 
