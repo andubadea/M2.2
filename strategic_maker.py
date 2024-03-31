@@ -21,7 +21,7 @@ class StrategicScenarioMaker:
         self.strategic_4D_path = self.path + '/Strategic/4D/'
         self.strategic_2D_path = self.path + '/Strategic/2D/'
         self.strategic_1D_path = self.path + '/Strategic/1D/'
-        self.G = ox.load_graphml(f'{self.path}/Graph_processing/streets_copy.graphml') # Load the street graph
+        self.G = ox.load_graphml(f'{self.path}/streets.graphml') # Load the street graph
         self.nodes, self.edges = ox.graph_to_gdfs(self.G) # Load the nodes and edges from the graph
         # Aircraft related 
         self.speed = 30
@@ -40,7 +40,7 @@ class StrategicScenarioMaker:
                 lines = f.readlines()
             
             # Multiprocessed line processing is fast
-            print(f'Processing {filename}')
+            print(f'Processing {filename}')  
             with Pool(self.num_cpu) as p:
                 scen_lines = list(tqdm.tqdm(p.imap(self.get_scenario_text_from_intention_line, lines), total = len(lines)))
                 

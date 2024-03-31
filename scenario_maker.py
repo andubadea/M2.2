@@ -17,10 +17,9 @@ class ScenarioMaker:
         self.layer_height = 30 #ft
         self.num_cpu = 32
         # Independent variables
-        self.demand = [60, 90, 120]
+        self.demand = [120, 180, 240]
         self.tactical = ['NoCR', 'SB']
-        #self.strategic = ['RALT', '1D', '2D', '4D', '4DRTA']
-        self.strategic = ['RALT','4D', '4DRTA']
+        self.strategic = ['RALT', '1D', '2D', '4D', '4DRTA']
         self.delay_mag = [10, 30, 60]
         self.delay_prob = [10, 30, 50]
         self.wind_mag = [2, 4, 6, 8]
@@ -40,7 +39,7 @@ class ScenarioMaker:
                                        self.repetition]))
         
         # Now fix the demand and do the delay with 0 wind
-        input_arr_2 = list(itertools.product(*[[90], 
+        input_arr_2 = list(itertools.product(*[[self.demand[1]], 
                                        self.tactical, 
                                        self.strategic, 
                                        self.delay_mag, 
@@ -50,7 +49,7 @@ class ScenarioMaker:
                                        self.repetition]))
         
         # And now the delay
-        input_arr_3 = list(itertools.product(*[[90], 
+        input_arr_3 = list(itertools.product(*[[self.demand[1]], 
                                        self.tactical, 
                                        self.strategic, 
                                        [0], 
