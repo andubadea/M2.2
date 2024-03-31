@@ -76,7 +76,7 @@ class StrategicScenarioMaker:
             # Get possible spawning altitudes
             altitudes = np.arange(self.layer_height, self.max_altitude, self.layer_height)
             # Set the seed to density + repetition
-            random.seed(int(filename.split('_')[-1]) + filename.split('_')[-2])
+            random.seed(int(filename.split('_')[-1].replace('.out','')) + filename.split('_')[-2])
             lines_std = []
             for line in enumerate(lines_1D):
                 # Pick a random altitude
