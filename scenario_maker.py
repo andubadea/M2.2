@@ -98,6 +98,8 @@ class ScenarioMaker:
         scen_text += '00:00:00>STARTLOGS\n'
         if strategic == '4DRTA':
             scen_text += '00:00:00>ENABLERTA\n'
+        elif strategic == 'RALT':
+            scen_text += '00:00:00>ENABLESPAWNPROTECTION\n'
         scen_text += '00:00:00>SCHEDULE 02:00:00 DELETEALL\n'
         scen_text += '00:00:00>SCHEDULE 02:00:01 HOLD\n'
         scen_text += '00:00:00.00>FF\n\n'
