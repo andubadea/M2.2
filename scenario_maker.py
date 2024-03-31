@@ -10,11 +10,12 @@ class ScenarioMaker:
         # City related parameters
         self.city = 'Vienna' # City name
         self.path = f'{self.city}' # Folder path
-        self.scenario_path = self.path + '/Base Scenarios/'
+        self.scenario_path = self.path + '/Base_Scenarios/'
         self.output_path = self.path + '/M2.2/'
         # Aircraft related 
         self.speed = 30
-        self.layer_height = 30 #ft
+        self.layer_height = 50 #ft
+        self.max_altitude = 500
         self.num_cpu = 32
         # Independent variables
         self.demand = [120, 180, 240]

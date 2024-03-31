@@ -25,7 +25,8 @@ class StrategicScenarioMaker:
         self.nodes, self.edges = ox.graph_to_gdfs(self.G) # Load the nodes and edges from the graph
         # Aircraft related 
         self.speed = 30
-        self.layer_height = 30 #ft
+        self.layer_height = 50 #ft
+        self.max_altitude = 500
         self.num_cpu = 30
         return
     
@@ -70,6 +71,23 @@ class StrategicScenarioMaker:
             
             with open(output_name.replace('2D','1D'), 'w') as f:
                 f.write(''.join(lines_1D))
+                
+            # Can also create the standard scenario by just randomising the altitude
+            # Get possible spawning altitudes
+            altitudes = np.arange(self.layer_height, self.max_altitude, self.layer_height)
+            # Set the seed to density + repetition
+            random.seed(int(filename.split('_')[-1]) + filename.split('_')[-2])
+            lines_std = []
+            for line in enumerate(lines_1D):
+                # Pick a random altitude
+                alt = random.choice(altitudes)
+                split_line = line.split(',')
+                split_line[5] = str(alt)
+                lines_std.append(','.join(split_line))
+            
+            with open(output_name.replace('1D','Standard'), 'w') as f:
+                f.write(''.join(lines_std))
+                
                 
     def kwikdist(self, lata: float, lona: float, latb:float, lonb:float) -> float:
         """Gives quick and dirty dist [m]
