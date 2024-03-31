@@ -26,7 +26,7 @@ class StrategicScenarioMaker:
         # Aircraft related 
         self.speed = 30
         self.layer_height = 30 #ft
-        self.num_cpu = 8
+        self.num_cpu = 30
         return
     
     def create_all_scenarios_from_strategic(self):
