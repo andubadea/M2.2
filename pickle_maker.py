@@ -27,11 +27,11 @@ def kwikqdrdist(lata, lona, latb, lonb):
     return qdr, dist
 
 # City we are using
-city = 'Vienna'
+city = 'Vienna_section'
 path = f'{city}'
 
 # Path requirements
-min_dist = 1000 # Metres
+min_dist = 100 # Metres
 
 # Load the graph for that city
 G = ox.load_graphml(f'{path}/streets.graphml')
@@ -50,7 +50,7 @@ while attempts < 100 and len(nodes_already_added)<200:
         existing_node_lat = G.nodes[existing_node]['y']
         existing_node_lon = G.nodes[existing_node]['x']
         _, dist = kwikqdrdist(node_lat, node_lon, existing_node_lat, existing_node_lon)
-        if dist < 300:
+        if dist < 200:
             # Node too close
             node_too_close = True
             break
@@ -60,15 +60,7 @@ while attempts < 100 and len(nodes_already_added)<200:
     else:
         attempts += 1
 
-# Load some helper dictionaries to convert node IDs to OSMIDs and back
-with open(f'{path}/id2osm.pickle', 'rb') as f:         
-    id2osm = pickle.load(f)
-
-with open(f'{path}/osm2id.pickle', 'rb') as f:    
-    osm2id = pickle.load(f)
-
 # Load the spawning points for that city, convert em to simple IDs
-spawn_nodes_osm = np.genfromtxt(f'{path}/spawn_points.txt', dtype = np.int64)
 orig_nodes = nodes_already_added
 orig_nodes_new = []
 
