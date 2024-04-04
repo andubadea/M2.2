@@ -18,7 +18,8 @@ class IntentionMaker:
     def __init__(self) -> None:
         # Design variables
         self.traffic_demand_levels = [120, 180, 240, 300, 360]# aircraft per minute
-        self.repetitions_per_demand_level = 5
+        self.traffic_demand_levels = [240]
+        self.repetitions_per_demand_level = 1
         self.min_mission_distance = 1000 #metres
         self.max_mission_distance = 5000 #metres
         self.intention_timespan = 90 # minutes
@@ -40,7 +41,7 @@ class IntentionMaker:
         self.nodes, self.edges = ox.graph_to_gdfs(self.G) # Load the nodes and edges from the graph
         
         # Num cpu
-        self.num_cpu = 25
+        self.num_cpu = 1
         
     def make_intentions(self) -> None:
         """Function that creates the intentions and saves them in files in function of the
