@@ -31,8 +31,9 @@ class StrategicScenarioMaker:
         return
     
     def create_all_scenarios_from_strategic(self):
-        strategic_files = [self.strategic_4D_path + x for x in os.listdir(self.strategic_4D_path) if ('.out' in x) and ('240_3' in x)]
-        strategic_files +=[self.strategic_2D_path + x for x in os.listdir(self.strategic_2D_path) if ('.out' in x) and ('240_3' in x)]
+        strategic_files = [self.strategic_4D_path + x for x in os.listdir(self.strategic_4D_path) if ('.out' in x)]
+        strategic_files +=[self.strategic_2D_path + x for x in os.listdir(self.strategic_2D_path) if ('.out' in x)]
+        strategic_files +=[self.strategic_1D_path + x for x in os.listdir(self.strategic_1D_path) if ('.out' in x)]
         
         with Pool(self.num_cpu) as p:
             _ = list(tqdm.tqdm(p.imap(self.create_one_scenario, strategic_files), total = len(strategic_files)))
@@ -50,42 +51,6 @@ class StrategicScenarioMaker:
         with open(output_name, 'w') as f:
             sorted_lines = self.natural_sort(scen_lines)
             f.write(''.join(sorted_lines))
-            
-        if '2D' in filename:
-            lines_1D = []
-            # We can create the 1D scenario out of this one as well by simply replacing the
-            # time with the intention time.
-            intention_name = filename.replace('/Strategic/2D/', '/Intentions/').replace('.out','.txt')
-            with open(intention_name, 'r') as f:
-                intention_lines = f.readlines()
-            
-            # Go through sorted lines, replace the time, save
-            for i, line in enumerate(sorted_lines):
-                # Get the correct time from intention
-                correct_time = intention_lines[i].split(';')[2]
-                acid = intention_lines[i].split(';')[0]
-                # Make sure that the acid is the same
-                lines_1D.append(line.replace(line[:8], correct_time))
-            
-            with open(output_name.replace('2D','1D'), 'w') as f:
-                f.write(''.join(lines_1D))
-                
-            # Can also create the standard scenario by just randomising the altitude
-            # Get possible spawning altitudes
-            altitudes = np.arange(self.layer_height, self.max_altitude, self.layer_height)
-            # Set the seed to density + repetition
-            random.seed(int(filename.split('_')[-1].replace('.out','')) + int(filename.split('_')[-2]))
-            lines_std = []
-            for line in lines_1D:
-                # Pick a random altitude
-                alt = random.choice(altitudes)
-                split_line = line.split(',')
-                split_line[5] = str(alt)
-                lines_std.append(','.join(split_line))
-            
-            with open(output_name.replace('2D','Standard'), 'w') as f:
-                f.write(''.join(lines_std))
-                
                 
     def kwikdist(self, lata: float, lona: float, latb:float, lonb:float) -> float:
         """Gives quick and dirty dist [m]
