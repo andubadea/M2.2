@@ -1,39 +1,19 @@
 # Simple script to create a batch file
 import os
-filename5 = 'Vienna/M2.2/m22batch5.scn'
-filename6 = 'Vienna/M2.2/m22batch6.scn'
-
-existing = [x for x in os.listdir('tmp') if 'REGLOG' in x]
-
-existing_set = set()
-
-for filename in existing:
-    # Check if reglog is complete
-    with open(f'tmp/{filename}', 'r') as f:
-        lines = f.readlines()
-        if '7200' in lines[-2]:
-            split_file = filename.split('_')
-            scen_name = '_'.join(split_file[1:10]) + '.scn'
-            existing_set.add(scen_name)
-            continue
-        else:
-            # Delete it
-            os.remove(f'tmp/{filename}')
-            os.remove(f"tmp/{filename.replace('REGLOG', 'LOSLOG')}")
-            os.remove(f"tmp/{filename.replace('REGLOG', 'FLSTLOG')}")
-            os.remove(f"tmp/{filename.replace('REGLOG', 'CONFLOG')}")
+filename5 = 'Vienna/M2.2/batch5.scn'
+filename6 = 'Vienna/M2.2/batch6.scn'
+filename7 = 'Vienna/M2.2/batch7.scn'
     
-all_scens = [x for x in os.listdir('Vienna/M2.2') if ('m22batch' not in x) and ('DS' not in x)]
-    
-to_include = [scenario for scenario in all_scens if (scenario not in existing_set) and ('_2D_' not in scenario) and ('_240_' not in scenario)]
+all_scens = [x for x in os.listdir('Vienna/M2.2') if ('batch' not in x) and ('DS' not in x)]
+to_include = all_scens
 
 # Split into two
-len5 = int(len(to_include)/2)
-batch5_scens = to_include[:len5]
-batch6_scens = to_include[len5:]
-
-print(len5)
-
+len_batch = int(len(all_scens)/4)
+batch5_scens = to_include[:len_batch]
+batch6_scens = to_include[len_batch:len_batch*2]
+#batch7_scens = to_include[len_batch*2:]
+batch5_scens = to_include[len_batch*2:len_batch*3]
+batch6_scens = to_include[len_batch*3:]
 
 
 with open(filename5, 'w') as f:
@@ -55,3 +35,13 @@ with open(filename6, 'w') as f:
                     '00:00:00.00>FF\n\n'
                     
         f.write(to_write)
+        
+# with open(filename7, 'w') as f:
+#     for scenario in batch7_scens:
+#         scen_name = scenario.replace('.scn','')
+        
+#         to_write = f'00:00:00.00>SCEN {scen_name}\n' + \
+#                     f'00:00:00.00>PCALL M2.2/{scenario}\n' + \
+#                     '00:00:00.00>FF\n\n'
+                    
+#         f.write(to_write)

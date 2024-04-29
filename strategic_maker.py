@@ -32,8 +32,8 @@ class StrategicScenarioMaker:
     
     def create_all_scenarios_from_strategic(self):
         strategic_files = [self.strategic_4D_path + x for x in os.listdir(self.strategic_4D_path) if ('.out' in x)]
-        strategic_files +=[self.strategic_2D_path + x for x in os.listdir(self.strategic_2D_path) if ('.out' in x)]
-        strategic_files +=[self.strategic_1D_path + x for x in os.listdir(self.strategic_1D_path) if ('.out' in x)]
+        #strategic_files =[self.strategic_2D_path + x for x in os.listdir(self.strategic_2D_path) if ('.out' in x)]
+        #strategic_files +=[self.strategic_1D_path + x for x in os.listdir(self.strategic_1D_path) if ('.out' in x)]
         
         with Pool(self.num_cpu) as p:
             _ = list(tqdm.tqdm(p.imap(self.create_one_scenario, strategic_files), total = len(strategic_files)))
